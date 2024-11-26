@@ -52,17 +52,6 @@ COPY gym_assets/10_nvidia.json /usr/share/glvnd/egl_vendor.d/10_nvidia.json
 # COPY gym_assets/IsaacGym_Preview_4_Package.tar.gz /home/user/
 # Create gym_assets directory and download IsaacGym_Preview_4_Package.tar.gz
 RUN wget -O /home/user/IsaacGym_Preview_4_Package.tar.gz https://developer.nvidia.com/isaac-gym-preview-4
-# RUN mkdir -p /home/user/gym_assets && \
-#     wget -O /home/user/gym_assets/IsaacGym_Preview_4_Package.tar.gz ${ISAAC_GYM_DOWNLOAD_URL}
-
-# # Define build argument for download URL
-# ARG ISAAC_GYM_DOWNLOAD_URL
-
-# # Download IsaacGym_Preview_4_Package.tar.gz using the provided URL
-# RUN mkdir -p /home/user/gym_assets && \
-#     wget -O /home/user/gym_assets/IsaacGym_Preview_4_Package.tar.gz ${ISAAC_GYM_DOWNLOAD_URL}
-#  --build-arg ISAAC_GYM_DOWNLOAD_URL=<YOUR_DIRECT_DOWNLOAD_URL>
-
 
 WORKDIR /home/user
 RUN tar -xzf IsaacGym_Preview_4_Package.tar.gz -C /home/user && rm IsaacGym_Preview_4_Package.tar.gz
