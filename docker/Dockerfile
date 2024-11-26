@@ -58,6 +58,11 @@ RUN tar -xzf IsaacGym_Preview_4_Package.tar.gz -C /home/user && rm IsaacGym_Prev
 RUN cd isaacgym/python && \
     python3 -m pip install -e .
 
+# COPY --chown=user:user IsaacGymEnvs /home/user/Documents
+# WORKDIR /home/user/Documents
+# RUN cd IsaacGymEnvs && \
+#     python3 -m pip install -e .
+
 # RUN sudo apt-get -y install python3-actionlib
 # COPY requirements.txt /home/user/
 # WORKDIR /home/user
