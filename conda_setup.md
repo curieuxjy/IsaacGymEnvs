@@ -8,5 +8,6 @@ pip install hydra-core urdfpy trimesh pysdf warp-lang scipy ninja rl_games numpy
 
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/avery/anaconda3/envs/dextreme/lib
 python train.py task=Cartpole
 ```
