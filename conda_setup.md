@@ -6,7 +6,7 @@ cd IsaacGymEnvs/
 pip install -e . --no-deps
 pip install hydra-core urdfpy trimesh pysdf warp-lang scipy ninja rl_games numpy==1.23.1
 
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cu121
 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/avery/anaconda3/envs/dextreme/lib
 python train.py task=Cartpole
