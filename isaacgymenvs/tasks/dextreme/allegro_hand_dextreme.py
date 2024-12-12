@@ -103,7 +103,7 @@ class AllegroHandDextreme(ADRVecTask):
 
         self.sim_device = sim_device
 
-        rl_device = self.cfg.get("rl_device", "cuda:0")
+        # rl_device = self.cfg.get("rl_device", "cuda:0")
 
         self._init_pre_sim_buffers()
         super().__init__(config=self.cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, use_dict_obs=True)
