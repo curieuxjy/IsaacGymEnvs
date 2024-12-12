@@ -111,11 +111,11 @@ class AllegroHandDextreme(ADRVecTask):
 
         reward_keys = ['dist_rew', 'rot_rew', 'action_penalty', 'action_delta_penalty',
                        'velocity_penalty', 'reach_goal_rew', 'fall_rew', 'timeout_rew']
+
         self.rewards_episode = {key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device) for key in reward_keys}
 
         if self.use_adr:
-            self.apply_reset_buf = torch.zeros(self.num_envs, dtype=torch.long, device=self.device) 
-
+            self.apply_reset_buf = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
 
         if self.print_success_stat:                        
             self.last_success_step = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
@@ -210,7 +210,6 @@ class AllegroHandDextreme(ADRVecTask):
         plane_params = gymapi.PlaneParams()
         plane_params.normal = gymapi.Vec3(0.0, 0.0, 1.0)
         self.gym.add_ground(self.sim, plane_params)
-
 
     def _create_envs(self, num_envs, spacing, num_per_row):
 
@@ -430,8 +429,6 @@ class AllegroHandDextreme(ADRVecTask):
                 out_dims=num_dofs, softmax_bins=softmax_bins, device=self.device)
 
 
-
-
         # Random cube observations. Need this tensor for Random Cube Pose Injection 
         self.random_cube_poses = torch.zeros(self.num_envs, 7, device=self.device)
 
@@ -528,8 +525,6 @@ class AllegroHandDextreme(ADRVecTask):
                 plt.savefig(f"{self.eval_summary_dir}/successes_histogram.png")
                 plt.clf()
 
-
-
     def compute_poses_wrt_wrist(self, object_pose, palm_link_pose, goal_pose=None):
 
         object_pos = object_pose[:, 0:3]
@@ -587,7 +582,6 @@ class AllegroHandDextreme(ADRVecTask):
 
         return object_pose_wrt_wrist, goal_pose_wrt_wrist
 
-
     def convert_pos_quat_to_mat(self, obj_pose_pos_quat):
 
         pos = obj_pose_pos_quat[:, 0:3]
@@ -602,7 +596,6 @@ class AllegroHandDextreme(ADRVecTask):
 
         return T    
 
-      
     def compute_observations(self):
         self.gym.refresh_dof_state_tensor(self.sim)
         self.gym.refresh_actor_root_state_tensor(self.sim)
@@ -691,7 +684,6 @@ class AllegroHandDextreme(ADRVecTask):
         self.obs_dict["rot_dist"][:, 0] = self.curr_rotation_dist
         self.obs_dict["rot_dist"][:, 1] = self.best_rotation_dist
 
-
     def get_random_quat(self, env_ids):
 
         # https://github.com/KieranWynn/pyquaternion/blob/master/pyquaternion/quaternion.py
@@ -732,7 +724,6 @@ class AllegroHandDextreme(ADRVecTask):
         # change back to non-initialized state
         self.best_rotation_dist[env_ids] = -1
 
-
     def get_relative_rot(self, obj_rot, goal_rot):
         return quat_mul(obj_rot, quat_conjugate(goal_rot))
 
@@ -769,8 +760,6 @@ class AllegroHandDextreme(ADRVecTask):
         current_cube_pose = current_cube_pose * ~random_cube_pose_mask + self.random_cube_poses * random_cube_pose_mask
 
         return current_cube_pose
-
-
 
     def reset_idx(self, env_ids, goal_env_ids):
 
@@ -908,7 +897,6 @@ class AllegroHandDextreme(ADRVecTask):
 
             self.extras['annealing/action_moving_average_scalar'] = self.act_moving_average
 
-
     def pre_physics_step(self, actions):
 
         # Anneal action moving average 
@@ -950,7 +938,6 @@ class AllegroHandDextreme(ADRVecTask):
 
     def apply_action_noise_latency(self):
         return self.actions 
-
 
     def apply_actions(self, actions):
 
@@ -1028,7 +1015,6 @@ class AllegroHandDextreme(ADRVecTask):
                 self.rb_forces[force_indices, self.object_rb_handles, :].shape, device=self.device) * self.object_rb_masses * self.force_scale
 
             self.gym.apply_rigid_body_force_tensors(self.sim, gymtorch.unwrap_tensor(self.rb_forces), None, gymapi.LOCAL_SPACE)
-        
 
     def post_physics_step(self):
 
@@ -1054,6 +1040,7 @@ class AllegroHandDextreme(ADRVecTask):
             self.gym.refresh_rigid_body_state_tensor(self.sim)
 
             for i in range(self.num_envs):
+                # TODO check quat_apply function
                 targetx = (self.goal_pos[i] + quat_apply(self.goal_rot[i], to_torch([1, 0, 0], device=self.device) * 0.2)).cpu().numpy()
                 targety = (self.goal_pos[i] + quat_apply(self.goal_rot[i], to_torch([0, 1, 0], device=self.device) * 0.2)).cpu().numpy()
                 targetz = (self.goal_pos[i] + quat_apply(self.goal_rot[i], to_torch([0, 0, 1], device=self.device) * 0.2)).cpu().numpy()
@@ -1071,7 +1058,6 @@ class AllegroHandDextreme(ADRVecTask):
                 self.gym.add_lines(self.viewer, self.envs[i], 1, [p0[0], p0[1], p0[2], objectx[0], objectx[1], objectx[2]], [0.85, 0.1, 0.1])
                 self.gym.add_lines(self.viewer, self.envs[i], 1, [p0[0], p0[1], p0[2], objecty[0], objecty[1], objecty[2]], [0.1, 0.85, 0.1])
                 self.gym.add_lines(self.viewer, self.envs[i], 1, [p0[0], p0[1], p0[2], objectz[0], objectz[1], objectz[2]], [0.1, 0.1, 0.85])
-        
 
     def track_dr_params(self):
         '''
@@ -1079,9 +1065,7 @@ class AllegroHandDextreme(ADRVecTask):
         '''
         pass 
 
-
     def _read_cfg(self):
-
         '''
         reads various variables from the config file
         '''
@@ -1343,7 +1327,6 @@ class AllegroHandDextreme(ADRVecTask):
             self.hand_random_params[env_id, 0] = param_val.mean() 
 
 
-
 class AllegroHandDextremeADR(AllegroHandDextreme):
 
     def _init_pre_sim_buffers(self):
@@ -1368,7 +1351,6 @@ class AllegroHandDextremeADR(AllegroHandDextreme):
         self.affine_dof_pos_additive = torch.zeros(self.cfg["env"]["numEnvs"], 16, dtype=torch.float, device=self.sim_device)
 
         self.action_latency = torch.zeros(self.cfg["env"]["numEnvs"], dtype=torch.long, device=self.sim_device)
-
 
     def sample_discrete_adr(self, param_name, env_ids):
         """Samples a discrete value from ADR continuous distribution.
@@ -1414,7 +1396,6 @@ class AllegroHandDextremeADR(AllegroHandDextreme):
         self.affine_dof_pos_scaling[randomize_env_ids] = 1. + self.sample_gaussian_adr("affine_dof_pos_scaling", randomize_env_ids, trailing_dim=16)
         self.affine_dof_pos_additive[randomize_env_ids] = self.sample_gaussian_adr("affine_dof_pos_additive", randomize_env_ids, trailing_dim=16)
 
-
     def create_sim(self):
 
         super().create_sim()
@@ -1425,7 +1406,6 @@ class AllegroHandDextremeADR(AllegroHandDextreme):
             apply_rand_ones = torch.ones(self.num_envs, dtype=bool, device=self.device)
             self.apply_randomizations(self.randomization_params, apply_rand_ones, adr_objective=adr_objective, 
                                     randomisation_callback=self.randomisation_callback)
-
 
     def apply_action_noise_latency(self):
         
@@ -1511,7 +1491,6 @@ class AllegroHandDextremeManualDR(AllegroHandDextreme):
         # offset so not all the environments have it each time
         self.cube_pose_refresh_offset = torch.randint(0, self.max_skip_obs, size=(self.num_envs,), device=self.device)
 
-        
     def get_num_obs_dict(self, num_dofs=16):
 
         return {"dof_pos": num_dofs,
@@ -1538,7 +1517,6 @@ class AllegroHandDextremeManualDR(AllegroHandDextreme):
             "ft_force_torques": 6 * self.num_fingertips, # wrenches
             }
 
-
     def get_rna_alpha(self):
         if self.randomize:
             return torch.rand(self.num_envs, 1, device=self.device)
@@ -1554,8 +1532,6 @@ class AllegroHandDextremeManualDR(AllegroHandDextreme):
         # inputs
         if self.randomize and not self.use_adr:
             self.apply_randomizations(self.randomization_params, randomisation_callback=self.randomisation_callback)
-
-
 
     def apply_randomizations(self, dr_params, randomize_buf=None, adr_objective=None, randomisation_callback=None):
 
@@ -1584,7 +1560,6 @@ class AllegroHandDextremeManualDR(AllegroHandDextreme):
             + self.prev_actions * ~action_delay_mask
         
         return actions_delayed
-
 
     def compute_observations(self):
         super().compute_observations()

@@ -153,17 +153,14 @@ def launch_rlg_hydra(cfg: DictConfig):
     dict_cls = ige_env_cls.dict_obs_cls if hasattr(ige_env_cls, 'dict_obs_cls') and ige_env_cls.dict_obs_cls else False
 
     if dict_cls:
-        
         obs_spec = {}
         actor_net_cfg = cfg.train.params.network
         obs_spec['obs'] = {'names': list(actor_net_cfg.inputs.keys()), 'concat': not actor_net_cfg.name == "complex_net", 'space_name': 'observation_space'}
         if "central_value_config" in cfg.train.params.config:
             critic_net_cfg = cfg.train.params.config.central_value_config.network
             obs_spec['states'] = {'names': list(critic_net_cfg.inputs.keys()), 'concat': not critic_net_cfg.name == "complex_net", 'space_name': 'state_space'}
-        
         vecenv.register('RLGPU', lambda config_name, num_actors, **kwargs: ComplexObsRLGPUEnv(config_name, num_actors, obs_spec, **kwargs))
     else:
-
         vecenv.register('RLGPU', lambda config_name, num_actors, **kwargs: RLGPUEnv(config_name, num_actors, **kwargs))
 
     rlg_config_dict = omegaconf_to_dict(cfg.train)
@@ -189,7 +186,6 @@ def launch_rlg_hydra(cfg: DictConfig):
         runner.player_factory.register_builder('amp_continuous', lambda **kwargs : amp_players.AMPPlayerContinuous(**kwargs))
         model_builder.register_model('continuous_amp', lambda network, **kwargs : amp_models.ModelAMPContinuous(network))
         model_builder.register_network('amp', lambda **kwargs : amp_network_builder.AMPBuilder())
-
         return runner
 
     # convert CLI arguments into dictionary

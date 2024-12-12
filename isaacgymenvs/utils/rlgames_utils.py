@@ -46,7 +46,6 @@ def multi_gpu_get_rank(multi_gpu):
         rank = int(os.getenv("LOCAL_RANK", "0"))
         print("GPU rank: ", rank)
         return rank
-
     return 0
 
 
