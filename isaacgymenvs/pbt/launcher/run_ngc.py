@@ -19,7 +19,10 @@ def add_ngc_args(parser):
         help="NGC command line template, specifying instance type, docker container, etc.",
     )
     parser.add_argument(
-        "--ngc_print_only", default=False, type=str2bool, help="Just print commands to the console without executing"
+        "--ngc_print_only",
+        default=False,
+        type=str2bool,
+        help="Just print commands to the console without executing",
     )
 
     parser.set_defaults(pause_between=0)
@@ -52,7 +55,9 @@ def run_ngc(run_description, args):
         job_name = name
         print(f"Job name: {job_name}")
 
-        ngc_job_cmd = ngc_template.replace("{{ name }}", job_name).replace("{{ experiment_cmd }}", cmd)
+        ngc_job_cmd = ngc_template.replace("{{ name }}", job_name).replace(
+            "{{ experiment_cmd }}", cmd
+        )
 
         print(f"Executing {ngc_job_cmd}")
 

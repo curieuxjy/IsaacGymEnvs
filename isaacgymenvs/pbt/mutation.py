@@ -72,8 +72,10 @@ def get_mutation_func(mutation_func_name):
     try:
         func = eval(mutation_func_name)
     except Exception as exc:
-        print(f'Exception {exc} while trying to find the mutation func {mutation_func_name}.')
-        raise Exception(f'Could not find mutation func {mutation_func_name}')
+        print(
+            f"Exception {exc} while trying to find the mutation func {mutation_func_name}."
+        )
+        raise Exception(f"Could not find mutation func {mutation_func_name}")
 
     return func
 
@@ -89,9 +91,11 @@ def mutate(params, mutations, mutation_rate, pbt_change_min, pbt_change_max):
         mutation_func_name = mutations[param]
         mutation_func = get_mutation_func(mutation_func_name)
 
-        mutated_value = mutation_func(param_value, change_min=pbt_change_min, change_max=pbt_change_max)
+        mutated_value = mutation_func(
+            param_value, change_min=pbt_change_min, change_max=pbt_change_max
+        )
         mutated_params[param] = mutated_value
 
-        print(f'Param {param} mutated to value {mutated_value}')
+        print(f"Param {param} mutated to value {mutated_value}")
 
     return mutated_params

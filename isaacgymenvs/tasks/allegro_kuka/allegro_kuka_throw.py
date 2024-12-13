@@ -34,15 +34,34 @@ from torch import Tensor
 
 from isaacgymenvs.utils.torch_jit_utils import to_torch, torch_rand_float
 from isaacgymenvs.tasks.allegro_kuka.allegro_kuka_base import AllegroKukaBase
-from isaacgymenvs.tasks.allegro_kuka.allegro_kuka_utils import tolerance_successes_objective
+from isaacgymenvs.tasks.allegro_kuka.allegro_kuka_utils import (
+    tolerance_successes_objective,
+)
 
 
 class AllegroKukaThrow(AllegroKukaBase):
-    def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
+    def __init__(
+        self,
+        cfg,
+        rl_device,
+        sim_device,
+        graphics_device_id,
+        headless,
+        virtual_screen_capture,
+        force_render,
+    ):
         self.bucket_asset = self.bucket_pose = None
         self.bucket_object_indices = []
 
-        super().__init__(cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render)
+        super().__init__(
+            cfg,
+            rl_device,
+            sim_device,
+            graphics_device_id,
+            headless,
+            virtual_screen_capture,
+            force_render,
+        )
 
     def _object_keypoint_offsets(self):
         """Throw task uses only a single object keypoint since we do not care about object orientation."""
@@ -62,7 +81,10 @@ class AllegroKukaThrow(AllegroKukaBase):
         bucket_asset_options.vhacd_params.max_num_vertices_per_ch = 32
         bucket_asset_options.vhacd_params.min_volume_per_ch = 0.001
         self.bucket_asset = self.gym.load_asset(
-            self.sim, object_asset_root, self.asset_files_dict["bucket"], bucket_asset_options
+            self.sim,
+            object_asset_root,
+            self.asset_files_dict["bucket"],
+            bucket_asset_options,
         )
 
         self.bucket_pose = gymapi.Transform()
@@ -81,19 +103,29 @@ class AllegroKukaThrow(AllegroKukaBase):
         bucket_handle = self.gym.create_actor(
             env_ptr, self.bucket_asset, self.bucket_pose, "bucket_object", env_idx, 0, 0
         )
-        bucket_object_idx = self.gym.get_actor_index(env_ptr, bucket_handle, gymapi.DOMAIN_SIM)
+        bucket_object_idx = self.gym.get_actor_index(
+            env_ptr, bucket_handle, gymapi.DOMAIN_SIM
+        )
         self.bucket_object_indices.append(bucket_object_idx)
 
     def _after_envs_created(self):
-        self.bucket_object_indices = to_torch(self.bucket_object_indices, dtype=torch.long, device=self.device)
+        self.bucket_object_indices = to_torch(
+            self.bucket_object_indices, dtype=torch.long, device=self.device
+        )
 
     def _reset_target(self, env_ids: Tensor) -> None:
         # whether we place the bucket to the left or to the right of the table
-        left_right_random = torch_rand_float(-1.0, 1.0, (len(env_ids), 1), device=self.device)
-        x_pos = torch.where(
-            left_right_random > 0, 0.5 * torch.ones_like(left_right_random), -0.5 * torch.ones_like(left_right_random)
+        left_right_random = torch_rand_float(
+            -1.0, 1.0, (len(env_ids), 1), device=self.device
         )
-        x_pos += torch.sign(left_right_random) * torch_rand_float(0, 0.4, (len(env_ids), 1), device=self.device)
+        x_pos = torch.where(
+            left_right_random > 0,
+            0.5 * torch.ones_like(left_right_random),
+            -0.5 * torch.ones_like(left_right_random),
+        )
+        x_pos += torch.sign(left_right_random) * torch_rand_float(
+            0, 0.4, (len(env_ids), 1), device=self.device
+        )
         # y_pos = torch_rand_float(-0.6, 0.4, (len(env_ids), 1), device=self.device)
         y_pos = torch_rand_float(-1.0, 0.7, (len(env_ids), 1), device=self.device)
         z_pos = torch_rand_float(0.0, 1.0, (len(env_ids), 1), device=self.device)
@@ -111,7 +143,10 @@ class AllegroKukaThrow(AllegroKukaBase):
         # since we put the object back on the table, also reset the lifting reward
         self.lifted_object[env_ids] = False
 
-        object_indices_to_reset = [self.bucket_object_indices[env_ids], self.object_indices[env_ids]]
+        object_indices_to_reset = [
+            self.bucket_object_indices[env_ids],
+            self.object_indices[env_ids],
+        ]
         self.deferred_set_actor_root_state_tensor_indexed(object_indices_to_reset)
 
     def _extra_object_indices(self, env_ids: Tensor) -> List[Tensor]:
@@ -119,6 +154,9 @@ class AllegroKukaThrow(AllegroKukaBase):
 
     def _true_objective(self) -> Tensor:
         true_objective = tolerance_successes_objective(
-            self.success_tolerance, self.initial_tolerance, self.target_tolerance, self.successes
+            self.success_tolerance,
+            self.initial_tolerance,
+            self.target_tolerance,
+            self.successes,
         )
         return true_objective

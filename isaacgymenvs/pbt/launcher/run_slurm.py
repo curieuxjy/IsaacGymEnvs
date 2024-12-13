@@ -7,9 +7,7 @@ from subprocess import PIPE, Popen
 
 
 SBATCH_TEMPLATE_DEFAULT = (
-    "#!/bin/bash\n"
-    "conda activate conda_env_name\n"
-    "cd ~/project\n"
+    "#!/bin/bash\n" "conda activate conda_env_name\n" "cd ~/project\n"
 )
 
 
@@ -25,12 +23,23 @@ def str2bool(v):
 
 
 def add_slurm_args(parser):
-    parser.add_argument("--slurm_gpus_per_job", default=1, type=int, help="GPUs in a single SLURM process")
     parser.add_argument(
-        "--slurm_cpus_per_gpu", default=16, type=int, help="Max allowed number of CPU cores per allocated GPU"
+        "--slurm_gpus_per_job",
+        default=1,
+        type=int,
+        help="GPUs in a single SLURM process",
     )
     parser.add_argument(
-        "--slurm_print_only", default=False, type=str2bool, help="Just print commands to the console without executing"
+        "--slurm_cpus_per_gpu",
+        default=16,
+        type=int,
+        help="Max allowed number of CPU cores per allocated GPU",
+    )
+    parser.add_argument(
+        "--slurm_print_only",
+        default=False,
+        type=str2bool,
+        help="Just print commands to the console without executing",
     )
     parser.add_argument(
         "--slurm_workdir",

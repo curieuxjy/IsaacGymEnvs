@@ -47,7 +47,9 @@ class ParamGrid(ParamGenerator):
             # last parameter, just return list of values for this parameter
             return [[value] for value in self.grid[params[param_idx]]]
         else:
-            subcombinations = self._generate_combinations(param_idx + 1, params)  # returns list of param combinations
+            subcombinations = self._generate_combinations(
+                param_idx + 1, params
+            )  # returns list of param combinations
             result = []
 
             # iterate over all values of current parameter
@@ -62,7 +64,9 @@ class ParamGrid(ParamGenerator):
             return dict()
 
         # start with 0th value for every parameter
-        total_num_combinations = np.prod([len(p_values) for p_values in self.grid.values()])
+        total_num_combinations = np.prod(
+            [len(p_values) for p_values in self.grid.values()]
+        )
 
         param_names = tuple(self.grid.keys())
         all_combinations = self._generate_combinations(0, param_names)
@@ -95,7 +99,9 @@ class Experiment:
         self.params = list(param_generator)
         self.env_vars = env_vars
 
-    def generate_experiments(self, experiment_arg_name, customize_experiment_name, param_prefix):
+    def generate_experiments(
+        self, experiment_arg_name, customize_experiment_name, param_prefix
+    ):
         """Yields tuples of (cmd, experiment_name)"""
         num_experiments = 1 if len(self.params) == 0 else len(self.params)
 
@@ -116,19 +122,30 @@ class Experiment:
                     shorthand_tokens = [t[0] for t in param_tokens[:-1]]
 
                     last_token_l = min(3, len(param_tokens[-1]))
-                    shorthand = ".".join(shorthand_tokens + [param_tokens[-1][:last_token_l]])
-                    while last_token_l <= len(param_tokens[-1]) and shorthand in param_shorthands:
+                    shorthand = ".".join(
+                        shorthand_tokens + [param_tokens[-1][:last_token_l]]
+                    )
+                    while (
+                        last_token_l <= len(param_tokens[-1])
+                        and shorthand in param_shorthands
+                    ):
                         last_token_l += 1
-                        shorthand = ".".join(shorthand_tokens + [param_tokens[-1][:last_token_l]])
+                        shorthand = ".".join(
+                            shorthand_tokens + [param_tokens[-1][:last_token_l]]
+                        )
 
                     param_shorthands.append(shorthand)
                     experiment_name_token = f"{shorthand}_{value}"
                     experiment_name_tokens.append(experiment_name_token)
 
             if customize_experiment_name:
-                experiment_name = f"{experiment_idx:02d}_" + "_".join(experiment_name_tokens)
+                experiment_name = f"{experiment_idx:02d}_" + "_".join(
+                    experiment_name_tokens
+                )
                 if len(experiment_name) > 100:
-                    print(f"Experiment name is extra long! ({len(experiment_name)} characters)")
+                    print(
+                        f"Experiment name is extra long! ({len(experiment_name)} characters)"
+                    )
             else:
                 experiment_name = f"{experiment_idx:02d}_{self.base_name}"
 
@@ -172,10 +189,14 @@ class RunDescription:
     def generate_experiments(self, train_dir, makedirs=True):
         """Yields tuples (final cmd for experiment, experiment_name, root_dir)."""
         for experiment in self.experiments:
-            root_dir = join(self.run_name, f"{experiment.base_name}_{self.experiment_suffix}")
+            root_dir = join(
+                self.run_name, f"{experiment.base_name}_{self.experiment_suffix}"
+            )
 
             experiment_cmds = experiment.generate_experiments(
-                self.experiment_arg_name, self.customize_experiment_name, self.param_prefix
+                self.experiment_arg_name,
+                self.customize_experiment_name,
+                self.param_prefix,
             )
             for experiment_cmd, experiment_name in experiment_cmds:
                 experiment_dir = join(train_dir, root_dir)

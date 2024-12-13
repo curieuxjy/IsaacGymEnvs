@@ -36,7 +36,10 @@ from typing import List, Tuple
 from isaacgym import gymapi, gymtorch, gymutil
 from torch import Tensor
 
-from isaacgymenvs.tasks.allegro_kuka.allegro_kuka_utils import DofParameters, populate_dof_properties
+from isaacgymenvs.tasks.allegro_kuka.allegro_kuka_utils import (
+    DofParameters,
+    populate_dof_properties,
+)
 from isaacgymenvs.tasks.base.vec_task import VecTask
 from isaacgymenvs.tasks.allegro_kuka.generate_cuboids import (
     generate_big_cuboids,
@@ -48,10 +51,21 @@ from isaacgymenvs.utils.torch_jit_utils import *
 
 
 class AllegroKukaTwoArmsBase(VecTask):
-    def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
+    def __init__(
+        self,
+        cfg,
+        rl_device,
+        sim_device,
+        graphics_device_id,
+        headless,
+        virtual_screen_capture,
+        force_render,
+    ):
         self.cfg = cfg
 
-        self.frame_since_restart: int = 0  # number of control steps since last restart across all actors
+        self.frame_since_restart: int = (
+            0  # number of control steps since last restart across all actors
+        )
 
         self.hand_arm_asset_file: str = self.cfg["env"]["asset"]["kukaAllegro"]
 
@@ -91,8 +105,12 @@ class AllegroKukaTwoArmsBase(VecTask):
         self.initial_tolerance = self.cfg["env"]["successTolerance"]
         self.success_tolerance = self.initial_tolerance
         self.target_tolerance = self.cfg["env"]["targetSuccessTolerance"]
-        self.tolerance_curriculum_increment = self.cfg["env"]["toleranceCurriculumIncrement"]
-        self.tolerance_curriculum_interval = self.cfg["env"]["toleranceCurriculumInterval"]
+        self.tolerance_curriculum_increment = self.cfg["env"][
+            "toleranceCurriculumIncrement"
+        ]
+        self.tolerance_curriculum_interval = self.cfg["env"][
+            "toleranceCurriculumInterval"
+        ]
 
         self.reach_goal_bonus = self.cfg["env"]["reachGoalBonus"]
         self.fall_dist = self.cfg["env"]["fallDistance"]
@@ -102,7 +120,9 @@ class AllegroKukaTwoArmsBase(VecTask):
         self.reset_position_noise_y = self.cfg["env"]["resetPositionNoiseY"]
         self.reset_position_noise_z = self.cfg["env"]["resetPositionNoiseZ"]
         self.reset_rotation_noise = self.cfg["env"]["resetRotationNoise"]
-        self.reset_dof_pos_noise_fingers = self.cfg["env"]["resetDofPosRandomIntervalFingers"]
+        self.reset_dof_pos_noise_fingers = self.cfg["env"][
+            "resetDofPosRandomIntervalFingers"
+        ]
         self.reset_dof_pos_noise_arm = self.cfg["env"]["resetDofPosRandomIntervalArm"]
         self.reset_dof_vel_noise = self.cfg["env"]["resetDofVelRandomInterval"]
 
@@ -137,7 +157,9 @@ class AllegroKukaTwoArmsBase(VecTask):
         self.with_sticks = self.cfg["env"]["withSticks"]
 
         if self.reset_time > 0.0:
-            self.max_episode_length = int(round(self.reset_time / (self.control_freq_inv * self.sim_params.dt)))
+            self.max_episode_length = int(
+                round(self.reset_time / (self.control_freq_inv * self.sim_params.dt))
+            )
             print("Reset time: ", self.reset_time)
             print("New episode length: ", self.max_episode_length)
 
@@ -157,9 +179,15 @@ class AllegroKukaTwoArmsBase(VecTask):
 
         self.num_keypoints = len(self.keypoints_offsets)
 
-        self.allegro_fingertips = ["index_link_3", "middle_link_3", "ring_link_3", "thumb_link_3"]
+        self.allegro_fingertips = [
+            "index_link_3",
+            "middle_link_3",
+            "ring_link_3",
+            "thumb_link_3",
+        ]
         self.fingertip_offsets = np.array(
-            [[0.05, 0.005, 0], [0.05, 0.005, 0], [0.05, 0.005, 0], [0.06, 0.005, 0]], dtype=np.float32
+            [[0.05, 0.005, 0], [0.05, 0.005, 0], [0.05, 0.005, 0], [0.06, 0.005, 0]],
+            dtype=np.float32,
         )
         palm_offset = np.array([-0.00, -0.02, 0.16], dtype=np.float32)
 
@@ -229,8 +257,13 @@ class AllegroKukaTwoArmsBase(VecTask):
         self.cfg["headless"] = headless
 
         super().__init__(
-            config=self.cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id,
-            headless=headless, virtual_screen_capture=virtual_screen_capture, force_render=force_render,
+            config=self.cfg,
+            rl_device=rl_device,
+            sim_device=sim_device,
+            graphics_device_id=graphics_device_id,
+            headless=headless,
+            virtual_screen_capture=virtual_screen_capture,
+            force_render=force_render,
         )
 
         if self.viewer is not None:
@@ -240,10 +273,16 @@ class AllegroKukaTwoArmsBase(VecTask):
 
         # volume to sample target position from
         target_volume_origin = np.array([0, 0.0, 0.8], dtype=np.float32)
-        target_volume_extent = np.array([[-0.2, 0.2], [-0.5, 0.5], [-0.12, 0.25]], dtype=np.float32)
+        target_volume_extent = np.array(
+            [[-0.2, 0.2], [-0.5, 0.5], [-0.12, 0.25]], dtype=np.float32
+        )
 
-        self.target_volume_origin = torch.from_numpy(target_volume_origin).to(self.device).float()
-        self.target_volume_extent = torch.from_numpy(target_volume_extent).to(self.device).float()
+        self.target_volume_origin = (
+            torch.from_numpy(target_volume_origin).to(self.device).float()
+        )
+        self.target_volume_extent = (
+            torch.from_numpy(target_volume_extent).to(self.device).float()
+        )
 
         # get gym GPU state tensors
         actor_root_state_tensor = self.gym.acquire_actor_root_state_tensor(self.sim)
@@ -258,92 +297,150 @@ class AllegroKukaTwoArmsBase(VecTask):
         self.dof_state = gymtorch.wrap_tensor(dof_state_tensor)
 
         self.hand_arm_default_dof_pos = torch.zeros(
-            [self.num_arms, self.num_hand_arm_dofs], dtype=torch.float, device=self.device
+            [self.num_arms, self.num_hand_arm_dofs],
+            dtype=torch.float,
+            device=self.device,
         )
 
-        desired_kuka_pos = torch.tensor([-1.571, 1.571, -0.000, 1.6, -0.000, 1.485, 2.358])  # pose v1
+        desired_kuka_pos = torch.tensor(
+            [-1.571, 1.571, -0.000, 1.6, -0.000, 1.485, 2.358]
+        )  # pose v1
         # desired_kuka_pos = torch.tensor([-2.135, 0.843, 1.786, -0.903, -2.262, 1.301, -2.791])  # pose v2
         self.hand_arm_default_dof_pos[0, :7] = desired_kuka_pos
 
-        desired_kuka_pos = torch.tensor([-1.571, 1.571, -0.000, 1.6, -0.000, 1.485, 2.358])  # pose v1
+        desired_kuka_pos = torch.tensor(
+            [-1.571, 1.571, -0.000, 1.6, -0.000, 1.485, 2.358]
+        )  # pose v1
         # desired_kuka_pos = torch.tensor([-2.135, 0.843, 1.786, -0.903, -2.262, 1.301, -2.791])  # pose v2
         self.hand_arm_default_dof_pos[1, :7] = desired_kuka_pos
 
-        self.pos_noise_coeff = torch.zeros_like(self.hand_arm_default_dof_pos, device=self.device)
+        self.pos_noise_coeff = torch.zeros_like(
+            self.hand_arm_default_dof_pos, device=self.device
+        )
         self.pos_noise_coeff[:, 0:7] = self.reset_dof_pos_noise_arm
-        self.pos_noise_coeff[:, 7 : self.num_hand_arm_dofs] = self.reset_dof_pos_noise_fingers
+        self.pos_noise_coeff[
+            :, 7 : self.num_hand_arm_dofs
+        ] = self.reset_dof_pos_noise_fingers
         self.pos_noise_coeff = self.pos_noise_coeff.flatten()
         self.hand_arm_default_dof_pos = self.hand_arm_default_dof_pos.flatten()
 
-        self.arm_hand_dof_state = self.dof_state.view(self.num_envs, -1, 2)[:, : self.num_hand_arm_dofs * self.num_arms]
+        self.arm_hand_dof_state = self.dof_state.view(self.num_envs, -1, 2)[
+            :, : self.num_hand_arm_dofs * self.num_arms
+        ]
         # this will have dimensions [num_envs, num_arms * num_hand_arm_dofs]
         self.arm_hand_dof_pos = self.arm_hand_dof_state[..., 0]
         self.arm_hand_dof_vel = self.arm_hand_dof_state[..., 1]
 
-        self.rigid_body_states = gymtorch.wrap_tensor(rigid_body_tensor).view(self.num_envs, -1, 13)
+        self.rigid_body_states = gymtorch.wrap_tensor(rigid_body_tensor).view(
+            self.num_envs, -1, 13
+        )
         self.num_bodies = self.rigid_body_states.shape[1]
 
-        self.root_state_tensor = gymtorch.wrap_tensor(actor_root_state_tensor).view(-1, 13)
+        self.root_state_tensor = gymtorch.wrap_tensor(actor_root_state_tensor).view(
+            -1, 13
+        )
 
-        self.palm_center_offset = torch.from_numpy(palm_offset).to(self.device).repeat((self.num_envs, 1))
-        self.palm_center_pos = torch.zeros((self.num_envs, self.num_arms, 3), dtype=torch.float, device=self.device)
+        self.palm_center_offset = (
+            torch.from_numpy(palm_offset).to(self.device).repeat((self.num_envs, 1))
+        )
+        self.palm_center_pos = torch.zeros(
+            (self.num_envs, self.num_arms, 3), dtype=torch.float, device=self.device
+        )
 
-        self.fingertip_offsets = torch.from_numpy(self.fingertip_offsets).to(self.device).repeat((self.num_envs, 1, 1))
+        self.fingertip_offsets = (
+            torch.from_numpy(self.fingertip_offsets)
+            .to(self.device)
+            .repeat((self.num_envs, 1, 1))
+        )
 
         self.set_actor_root_state_object_indices: List[Tensor] = []
 
         self.prev_targets = torch.zeros(
-            (self.num_envs, self.num_arms * self.num_hand_arm_dofs), dtype=torch.float, device=self.device
+            (self.num_envs, self.num_arms * self.num_hand_arm_dofs),
+            dtype=torch.float,
+            device=self.device,
         )
         self.cur_targets = torch.zeros(
-            (self.num_envs, self.num_arms * self.num_hand_arm_dofs), dtype=torch.float, device=self.device
+            (self.num_envs, self.num_arms * self.num_hand_arm_dofs),
+            dtype=torch.float,
+            device=self.device,
         )
 
-        self.global_indices = torch.arange(self.num_envs * 3, dtype=torch.int32, device=self.device).view(
-            self.num_envs, -1
-        )
-        self.x_unit_tensor = to_torch([1, 0, 0], dtype=torch.float, device=self.device).repeat((self.num_envs, 1))
-        self.y_unit_tensor = to_torch([0, 1, 0], dtype=torch.float, device=self.device).repeat((self.num_envs, 1))
-        self.z_unit_tensor = to_torch([0, 0, 1], dtype=torch.float, device=self.device).repeat((self.num_envs, 1))
+        self.global_indices = torch.arange(
+            self.num_envs * 3, dtype=torch.int32, device=self.device
+        ).view(self.num_envs, -1)
+        self.x_unit_tensor = to_torch(
+            [1, 0, 0], dtype=torch.float, device=self.device
+        ).repeat((self.num_envs, 1))
+        self.y_unit_tensor = to_torch(
+            [0, 1, 0], dtype=torch.float, device=self.device
+        ).repeat((self.num_envs, 1))
+        self.z_unit_tensor = to_torch(
+            [0, 0, 1], dtype=torch.float, device=self.device
+        ).repeat((self.num_envs, 1))
 
         self.reset_goal_buf = self.reset_buf.clone()
-        self.successes = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        self.successes = torch.zeros(
+            self.num_envs, dtype=torch.float, device=self.device
+        )
         self.prev_episode_successes = torch.zeros_like(self.successes)
 
         # true objective value for the whole episode, plus saving values for the previous episode
-        self.true_objective = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        self.true_objective = torch.zeros(
+            self.num_envs, dtype=torch.float, device=self.device
+        )
         self.prev_episode_true_objective = torch.zeros_like(self.true_objective)
 
         self.total_successes = 0
         self.total_resets = 0
 
         # object apply random forces parameters
-        self.force_decay = to_torch(self.force_decay, dtype=torch.float, device=self.device)
-        self.force_prob_range = to_torch(self.force_prob_range, dtype=torch.float, device=self.device)
+        self.force_decay = to_torch(
+            self.force_decay, dtype=torch.float, device=self.device
+        )
+        self.force_prob_range = to_torch(
+            self.force_prob_range, dtype=torch.float, device=self.device
+        )
         self.random_force_prob = torch.exp(
             (torch.log(self.force_prob_range[0]) - torch.log(self.force_prob_range[1]))
             * torch.rand(self.num_envs, device=self.device)
             + torch.log(self.force_prob_range[1])
         )
 
-        self.rb_forces = torch.zeros((self.num_envs, self.num_bodies, 3), dtype=torch.float, device=self.device)
-        self.action_torques = torch.zeros((self.num_envs, self.num_bodies, 3), dtype=torch.float, device=self.device)
+        self.rb_forces = torch.zeros(
+            (self.num_envs, self.num_bodies, 3), dtype=torch.float, device=self.device
+        )
+        self.action_torques = torch.zeros(
+            (self.num_envs, self.num_bodies, 3), dtype=torch.float, device=self.device
+        )
 
         self.obj_keypoint_pos = torch.zeros(
-            (self.num_envs, self.num_keypoints, 3), dtype=torch.float, device=self.device
+            (self.num_envs, self.num_keypoints, 3),
+            dtype=torch.float,
+            device=self.device,
         )
         self.goal_keypoint_pos = torch.zeros(
-            (self.num_envs, self.num_keypoints, 3), dtype=torch.float, device=self.device
+            (self.num_envs, self.num_keypoints, 3),
+            dtype=torch.float,
+            device=self.device,
         )
 
         # how many steps we were within the goal tolerance
-        self.near_goal_steps = torch.zeros(self.num_envs, dtype=torch.int, device=self.device)
+        self.near_goal_steps = torch.zeros(
+            self.num_envs, dtype=torch.int, device=self.device
+        )
 
-        self.lifted_object = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
-        self.closest_keypoint_max_dist = -torch.ones(self.num_envs, dtype=torch.float, device=self.device)
+        self.lifted_object = torch.zeros(
+            self.num_envs, dtype=torch.bool, device=self.device
+        )
+        self.closest_keypoint_max_dist = -torch.ones(
+            self.num_envs, dtype=torch.float, device=self.device
+        )
 
         self.closest_fingertip_dist = -torch.ones(
-            [self.num_envs, self.num_arms, self.num_fingertips], dtype=torch.float, device=self.device
+            [self.num_envs, self.num_arms, self.num_fingertips],
+            dtype=torch.float,
+            device=self.device,
         )
 
         reward_keys = [
@@ -358,7 +455,8 @@ class AllegroKukaTwoArmsBase(VecTask):
         ]
 
         self.rewards_episode = {
-            key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device) for key in reward_keys
+            key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+            for key in reward_keys
         }
 
         self.last_curriculum_update = 0
@@ -368,11 +466,19 @@ class AllegroKukaTwoArmsBase(VecTask):
 
         self.eval_stats: bool = self.cfg["env"]["evalStats"]
         if self.eval_stats:
-            self.last_success_step = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
-            self.success_time = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
-            self.total_num_resets = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+            self.last_success_step = torch.zeros(
+                self.num_envs, dtype=torch.float, device=self.device
+            )
+            self.success_time = torch.zeros(
+                self.num_envs, dtype=torch.float, device=self.device
+            )
+            self.total_num_resets = torch.zeros(
+                self.num_envs, dtype=torch.float, device=self.device
+            )
             self.successes_count = torch.zeros(
-                self.max_consecutive_successes + 1, dtype=torch.float, device=self.device
+                self.max_consecutive_successes + 1,
+                dtype=torch.float,
+                device=self.device,
             )
             from tensorboardX import SummaryWriter
 
@@ -389,7 +495,9 @@ class AllegroKukaTwoArmsBase(VecTask):
     def _object_keypoint_offsets(self):
         raise NotImplementedError()
 
-    def _object_start_pose(self, arms_y_ofs: float, table_pose_dy: float, table_pose_dz: float):
+    def _object_start_pose(
+        self, arms_y_ofs: float, table_pose_dy: float, table_pose_dz: float
+    ):
         object_start_pose = gymapi.Transform()
         object_start_pose.p = gymapi.Vec3()
         object_start_pose.p.x = 0.0
@@ -402,7 +510,9 @@ class AllegroKukaTwoArmsBase(VecTask):
         return object_start_pose
 
     def _main_object_assets_and_scales(self, object_asset_root, tmp_assets_dir):
-        object_asset_files, object_asset_scales = self._box_asset_files_and_scales(object_asset_root, tmp_assets_dir)
+        object_asset_files, object_asset_scales = self._box_asset_files_and_scales(
+            object_asset_root, tmp_assets_dir
+        )
         if not self.randomize_object_dimensions:
             object_asset_files = object_asset_files[:1]
             object_asset_scales = object_asset_scales[:1]
@@ -424,7 +534,9 @@ class AllegroKukaTwoArmsBase(VecTask):
         for object_asset_file in self.object_asset_files:
             object_asset_dir = os.path.dirname(object_asset_file)
             object_asset_fname = os.path.basename(object_asset_file)
-            object_asset_ = self.gym.load_asset(self.sim, object_asset_dir, object_asset_fname, object_asset_options)
+            object_asset_ = self.gym.load_asset(
+                self.sim, object_asset_dir, object_asset_fname, object_asset_options
+            )
             object_assets.append(object_asset_)
         object_rb_count = self.gym.get_asset_rigid_body_count(
             object_assets[0]
@@ -434,7 +546,9 @@ class AllegroKukaTwoArmsBase(VecTask):
         )  # assuming all of them have the same rb count
         return object_assets, object_rb_count, object_shapes_count
 
-    def _load_additional_assets(self, object_asset_root, arm_y_offset: float) -> Tuple[int, int]:
+    def _load_additional_assets(
+        self, object_asset_root, arm_y_offset: float
+    ) -> Tuple[int, int]:
         """
         returns: tuple (num_rigid_bodies, num_shapes)
         """
@@ -480,16 +594,25 @@ class AllegroKukaTwoArmsBase(VecTask):
             self.__dict__[key] = value
             print(f"Loaded env state value {key}:{value}")
 
-        print(f"Success tolerance value after loading from checkpoint: {self.success_tolerance}")
+        print(
+            f"Success tolerance value after loading from checkpoint: {self.success_tolerance}"
+        )
 
     # noinspection PyMethodOverriding
     def create_sim(self):
         self.dt = self.sim_params.dt
         self.up_axis_idx = 2  # index of up axis: Y=1, Z=2 (same as in allegro_hand.py)
 
-        self.sim = super().create_sim(self.device_id, self.graphics_device_id, self.physics_engine, self.sim_params)
+        self.sim = super().create_sim(
+            self.device_id,
+            self.graphics_device_id,
+            self.physics_engine,
+            self.sim_params,
+        )
         self._create_ground_plane()
-        self._create_envs(self.num_envs, self.cfg["env"]["envSpacing"], int(np.sqrt(self.num_envs)))
+        self._create_envs(
+            self.num_envs, self.cfg["env"]["envSpacing"], int(np.sqrt(self.num_envs))
+        )
 
     def _create_ground_plane(self):
         plane_params = gymapi.PlaneParams()
@@ -506,7 +629,9 @@ class AllegroKukaTwoArmsBase(VecTask):
                 if fname.endswith(".urdf"):
                     os.remove(join(generated_assets_dir, fname))
         except Exception as exc:
-            print(f"Exception {exc} while removing older procedurally-generated urdf assets")
+            print(
+                f"Exception {exc} while removing older procedurally-generated urdf assets"
+            )
 
         objects_rel_path = os.path.dirname(self.asset_files_dict[self.object_type])
         objects_dir = join(object_assets_root, objects_rel_path)
@@ -515,7 +640,9 @@ class AllegroKukaTwoArmsBase(VecTask):
         generate_default_cube(generated_assets_dir, base_mesh, self.object_base_size)
 
         if self.with_small_cuboids:
-            generate_small_cuboids(generated_assets_dir, base_mesh, self.object_base_size)
+            generate_small_cuboids(
+                generated_assets_dir, base_mesh, self.object_base_size
+            )
         if self.with_big_cuboids:
             generate_big_cuboids(generated_assets_dir, base_mesh, self.object_base_size)
         if self.with_sticks:
@@ -528,7 +655,9 @@ class AllegroKukaTwoArmsBase(VecTask):
             if fname.endswith(".urdf"):
                 scale_tokens = os.path.splitext(fname)[0].split("_")[2:]
                 files.append(join(generated_assets_dir, fname))
-                scales.append([float(scale_token) / 100 for scale_token in scale_tokens])
+                scales.append(
+                    [float(scale_token) / 100 for scale_token in scale_tokens]
+                )
 
         return files, scales
 
@@ -536,13 +665,16 @@ class AllegroKukaTwoArmsBase(VecTask):
         lower = gymapi.Vec3(-spacing, -spacing, 0.0)
         upper = gymapi.Vec3(spacing, spacing, spacing)
 
-        asset_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../assets")
+        asset_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "../../../assets"
+        )
 
         object_asset_root = asset_root
         tmp_assets_dir = tempfile.TemporaryDirectory()
-        self.object_asset_files, self.object_asset_scales = self._main_object_assets_and_scales(
-            object_asset_root, tmp_assets_dir.name
-        )
+        (
+            self.object_asset_files,
+            self.object_asset_scales,
+        ) = self._main_object_assets_and_scales(object_asset_root, tmp_assets_dir.name)
 
         asset_options = gymapi.AssetOptions()
         asset_options.fix_base_link = True
@@ -558,7 +690,9 @@ class AllegroKukaTwoArmsBase(VecTask):
         asset_options.default_dof_drive_mode = gymapi.DOF_MODE_POS
 
         print(f"Loading asset {self.hand_arm_asset_file} from {asset_root}")
-        allegro_kuka_asset = self.gym.load_asset(self.sim, asset_root, self.hand_arm_asset_file, asset_options)
+        allegro_kuka_asset = self.gym.load_asset(
+            self.sim, asset_root, self.hand_arm_asset_file, asset_options
+        )
         print(f"Loaded asset {allegro_kuka_asset}")
 
         num_hand_arm_bodies = self.gym.get_asset_rigid_body_count(allegro_kuka_asset)
@@ -572,7 +706,8 @@ class AllegroKukaTwoArmsBase(VecTask):
         max_agg_shapes = all_arms_shapes = num_hand_arm_shapes * self.num_arms
 
         allegro_rigid_body_names = [
-            self.gym.get_asset_rigid_body_name(allegro_kuka_asset, i) for i in range(num_hand_arm_bodies)
+            self.gym.get_asset_rigid_body_name(allegro_kuka_asset, i)
+            for i in range(num_hand_arm_bodies)
         ]
         print(f"Allegro num rigid bodies: {num_hand_arm_bodies}")
         print(f"Allegro rigid bodies: {allegro_rigid_body_names}")
@@ -591,24 +726,38 @@ class AllegroKukaTwoArmsBase(VecTask):
                 arm_hand_dof_upper_limits.append(hand_arm_dof_props["upper"][i])
 
         # self.allegro_actuated_dof_indices = to_torch(self.allegro_actuated_dof_indices, dtype=torch.long, device=self.device)
-        self.arm_hand_dof_lower_limits = to_torch(arm_hand_dof_lower_limits, device=self.device)
-        self.arm_hand_dof_upper_limits = to_torch(arm_hand_dof_upper_limits, device=self.device)
+        self.arm_hand_dof_lower_limits = to_torch(
+            arm_hand_dof_lower_limits, device=self.device
+        )
+        self.arm_hand_dof_upper_limits = to_torch(
+            arm_hand_dof_upper_limits, device=self.device
+        )
 
         arm_poses = [gymapi.Transform() for _ in range(self.num_arms)]
         arm_x_ofs, arm_y_ofs = self.arm_x_ofs, self.arm_y_ofs
         for arm_idx, arm_pose in enumerate(arm_poses):
             x_ofs = arm_x_ofs * (-1 if arm_idx == 0 else 1)
-            arm_pose.p = gymapi.Vec3(*get_axis_params(0.0, self.up_axis_idx)) + gymapi.Vec3(x_ofs, arm_y_ofs, 0)
+            arm_pose.p = gymapi.Vec3(
+                *get_axis_params(0.0, self.up_axis_idx)
+            ) + gymapi.Vec3(x_ofs, arm_y_ofs, 0)
 
             # arm_pose.r = gymapi.Quat(0.0, 0.0, 0.0, 1.0)
             if arm_idx == 0:
                 # rotate 1st arm 90 degrees to the left
-                arm_pose.r = gymapi.Quat.from_axis_angle(gymapi.Vec3(0, 0, 1), math.pi / 2)
+                arm_pose.r = gymapi.Quat.from_axis_angle(
+                    gymapi.Vec3(0, 0, 1), math.pi / 2
+                )
             else:
                 # rotate 2nd arm 90 degrees to the right
-                arm_pose.r = gymapi.Quat.from_axis_angle(gymapi.Vec3(0, 0, 1), -math.pi / 2)
+                arm_pose.r = gymapi.Quat.from_axis_angle(
+                    gymapi.Vec3(0, 0, 1), -math.pi / 2
+                )
 
-        object_assets, object_rb_count, object_shapes_count = self._load_main_object_asset()
+        (
+            object_assets,
+            object_rb_count,
+            object_shapes_count,
+        ) = self._load_main_object_asset()
         max_agg_bodies += object_rb_count
         max_agg_shapes += object_shapes_count
 
@@ -616,7 +765,9 @@ class AllegroKukaTwoArmsBase(VecTask):
         table_asset_options = gymapi.AssetOptions()
         table_asset_options.disable_gravity = False
         table_asset_options.fix_base_link = True
-        table_asset = self.gym.load_asset(self.sim, asset_root, self.asset_files_dict["table"], table_asset_options)
+        table_asset = self.gym.load_asset(
+            self.sim, asset_root, self.asset_files_dict["table"], table_asset_options
+        )
 
         table_pose = gymapi.Transform()
         table_pose.p = gymapi.Vec3()
@@ -631,12 +782,16 @@ class AllegroKukaTwoArmsBase(VecTask):
         max_agg_bodies += table_rb_count
         max_agg_shapes += table_shapes_count
 
-        additional_rb, additional_shapes = self._load_additional_assets(object_asset_root, arm_y_ofs)
+        additional_rb, additional_shapes = self._load_additional_assets(
+            object_asset_root, arm_y_ofs
+        )
         max_agg_bodies += additional_rb
         max_agg_shapes += additional_shapes
 
         # set up object and goal positions
-        self.object_start_pose = self._object_start_pose(arm_y_ofs, table_pose_dy, table_pose_dz)
+        self.object_start_pose = self._object_start_pose(
+            arm_y_ofs, table_pose_dy, table_pose_dz
+        )
 
         self.envs = []
 
@@ -644,22 +799,35 @@ class AllegroKukaTwoArmsBase(VecTask):
         object_scales = []
         object_keypoint_offsets = []
 
-        allegro_palm_handle = self.gym.find_asset_rigid_body_index(allegro_kuka_asset, "iiwa7_link_7")
+        allegro_palm_handle = self.gym.find_asset_rigid_body_index(
+            allegro_kuka_asset, "iiwa7_link_7"
+        )
         fingertip_handles = [
-            self.gym.find_asset_rigid_body_index(allegro_kuka_asset, name) for name in self.allegro_fingertips
+            self.gym.find_asset_rigid_body_index(allegro_kuka_asset, name)
+            for name in self.allegro_fingertips
         ]
 
         self.allegro_palm_handles = []
         self.allegro_fingertip_handles = []
         for arm_idx in range(self.num_arms):
-            self.allegro_palm_handles.append(allegro_palm_handle + arm_idx * num_hand_arm_bodies)
-            self.allegro_fingertip_handles.extend([h + arm_idx * num_hand_arm_bodies for h in fingertip_handles])
+            self.allegro_palm_handles.append(
+                allegro_palm_handle + arm_idx * num_hand_arm_bodies
+            )
+            self.allegro_fingertip_handles.extend(
+                [h + arm_idx * num_hand_arm_bodies for h in fingertip_handles]
+            )
 
         # does this rely on the fact that objects are added right after the arms in terms of create_actor()?
-        self.object_rb_handles = list(range(all_arms_bodies, all_arms_bodies + object_rb_count))
+        self.object_rb_handles = list(
+            range(all_arms_bodies, all_arms_bodies + object_rb_count)
+        )
 
-        self.arm_indices = torch.empty([self.num_envs, self.num_arms], dtype=torch.long, device=self.device)
-        self.object_indices = torch.empty(self.num_envs, dtype=torch.long, device=self.device)
+        self.arm_indices = torch.empty(
+            [self.num_envs, self.num_arms], dtype=torch.long, device=self.device
+        )
+        self.object_indices = torch.empty(
+            self.num_envs, dtype=torch.long, device=self.device
+        )
 
         assert self.num_envs >= 1
         for i in range(self.num_envs):
@@ -670,12 +838,27 @@ class AllegroKukaTwoArmsBase(VecTask):
 
             # add arms
             for arm_idx in range(self.num_arms):
-                arm = self.gym.create_actor(env_ptr, allegro_kuka_asset, arm_poses[arm_idx], f"arm{arm_idx}", i, -1, 0)
+                arm = self.gym.create_actor(
+                    env_ptr,
+                    allegro_kuka_asset,
+                    arm_poses[arm_idx],
+                    f"arm{arm_idx}",
+                    i,
+                    -1,
+                    0,
+                )
 
-                populate_dof_properties(hand_arm_dof_props, self.dof_params, self.num_arm_dofs, self.num_hand_dofs)
+                populate_dof_properties(
+                    hand_arm_dof_props,
+                    self.dof_params,
+                    self.num_arm_dofs,
+                    self.num_hand_dofs,
+                )
 
                 self.gym.set_actor_dof_properties(env_ptr, arm, hand_arm_dof_props)
-                allegro_hand_idx = self.gym.get_actor_index(env_ptr, arm, gymapi.DOMAIN_SIM)
+                allegro_hand_idx = self.gym.get_actor_index(
+                    env_ptr, arm, gymapi.DOMAIN_SIM
+                )
 
                 self.arm_indices[i, arm_idx] = allegro_hand_idx
 
@@ -684,10 +867,16 @@ class AllegroKukaTwoArmsBase(VecTask):
             object_asset = object_assets[object_asset_idx]
 
             obj_pose = self.object_start_pose
-            object_handle = self.gym.create_actor(env_ptr, object_asset, obj_pose, "object", i, 0, 0)
+            object_handle = self.gym.create_actor(
+                env_ptr, object_asset, obj_pose, "object", i, 0, 0
+            )
             pos, rot = obj_pose.p, obj_pose.r
-            object_init_state.append([pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, rot.w, 0, 0, 0, 0, 0, 0])
-            object_idx = self.gym.get_actor_index(env_ptr, object_handle, gymapi.DOMAIN_SIM)
+            object_init_state.append(
+                [pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, rot.w, 0, 0, 0, 0, 0, 0]
+            )
+            object_idx = self.gym.get_actor_index(
+                env_ptr, object_handle, gymapi.DOMAIN_SIM
+            )
             self.object_indices[i] = object_idx
 
             object_scale = self.object_asset_scales[object_asset_idx]
@@ -696,17 +885,28 @@ class AllegroKukaTwoArmsBase(VecTask):
             for keypoint in self.keypoints_offsets:
                 keypoint = copy(keypoint)
                 for coord_idx in range(3):
-                    keypoint[coord_idx] *= object_scale[coord_idx] * self.object_base_size * self.keypoint_scale / 2
+                    keypoint[coord_idx] *= (
+                        object_scale[coord_idx]
+                        * self.object_base_size
+                        * self.keypoint_scale
+                        / 2
+                    )
                 object_offsets.append(keypoint)
 
             object_keypoint_offsets.append(object_offsets)
 
             # table object
-            table_handle = self.gym.create_actor(env_ptr, table_asset, table_pose, "table_object", i, 0, 0)
-            _table_object_idx = self.gym.get_actor_index(env_ptr, table_handle, gymapi.DOMAIN_SIM)
+            table_handle = self.gym.create_actor(
+                env_ptr, table_asset, table_pose, "table_object", i, 0, 0
+            )
+            _table_object_idx = self.gym.get_actor_index(
+                env_ptr, table_handle, gymapi.DOMAIN_SIM
+            )
 
             # task-specific objects (i.e. goal object for reorientation task)
-            self._create_additional_objects(env_ptr, env_idx=i, object_asset_idx=object_asset_idx)
+            self._create_additional_objects(
+                env_ptr, env_idx=i, object_asset_idx=object_asset_idx
+            )
 
             self.gym.end_aggregate(env_ptr)
 
@@ -715,22 +915,34 @@ class AllegroKukaTwoArmsBase(VecTask):
         # we are not using new mass values after DR when calculating random forces applied to an object,
         # which should be ok as long as the randomization range is not too big
         # noinspection PyUnboundLocalVariable
-        object_rb_props = self.gym.get_actor_rigid_body_properties(self.envs[0], object_handle)
+        object_rb_props = self.gym.get_actor_rigid_body_properties(
+            self.envs[0], object_handle
+        )
         self.object_rb_masses = [prop.mass for prop in object_rb_props]
 
-        self.object_init_state = to_torch(object_init_state, device=self.device, dtype=torch.float).view(
-            self.num_envs, 13
-        )
+        self.object_init_state = to_torch(
+            object_init_state, device=self.device, dtype=torch.float
+        ).view(self.num_envs, 13)
         self.goal_states = self.object_init_state.clone()
         self.goal_states[:, self.up_axis_idx] -= 0.04
         self.goal_init_state = self.goal_states.clone()
 
-        self.allegro_fingertip_handles = to_torch(self.allegro_fingertip_handles, dtype=torch.long, device=self.device)
-        self.object_rb_handles = to_torch(self.object_rb_handles, dtype=torch.long, device=self.device)
-        self.object_rb_masses = to_torch(self.object_rb_masses, dtype=torch.float, device=self.device)
+        self.allegro_fingertip_handles = to_torch(
+            self.allegro_fingertip_handles, dtype=torch.long, device=self.device
+        )
+        self.object_rb_handles = to_torch(
+            self.object_rb_handles, dtype=torch.long, device=self.device
+        )
+        self.object_rb_masses = to_torch(
+            self.object_rb_masses, dtype=torch.float, device=self.device
+        )
 
-        self.object_scales = to_torch(object_scales, dtype=torch.float, device=self.device)
-        self.object_keypoint_offsets = to_torch(object_keypoint_offsets, dtype=torch.float, device=self.device)
+        self.object_scales = to_torch(
+            object_scales, dtype=torch.float, device=self.device
+        )
+        self.object_keypoint_offsets = to_torch(
+            object_keypoint_offsets, dtype=torch.float, device=self.device
+        )
 
         self._after_envs_created()
 
@@ -743,14 +955,20 @@ class AllegroKukaTwoArmsBase(VecTask):
     def _distance_delta_rewards(self, lifted_object: Tensor) -> Tensor:
         """Rewards for fingertips approaching the object or penalty for hand getting further away from the object."""
         # this is positive if we got closer, negative if we're further away than the closest we've gotten
-        fingertip_deltas_closest = self.closest_fingertip_dist - self.curr_fingertip_distances
+        fingertip_deltas_closest = (
+            self.closest_fingertip_dist - self.curr_fingertip_distances
+        )
         # update the values if finger tips got closer to the object
-        self.closest_fingertip_dist = torch.minimum(self.closest_fingertip_dist, self.curr_fingertip_distances)
+        self.closest_fingertip_dist = torch.minimum(
+            self.closest_fingertip_dist, self.curr_fingertip_distances
+        )
 
         # clip between zero and +inf to turn deltas into rewards
         fingertip_deltas = torch.clip(fingertip_deltas_closest, 0, 10)
         fingertip_delta_rew = torch.sum(fingertip_deltas, dim=-1)
-        fingertip_delta_rew = torch.sum(fingertip_delta_rew, dim=-1)  # sum over all arms
+        fingertip_delta_rew = torch.sum(
+            fingertip_delta_rew, dim=-1
+        )  # sum over all arms
 
         # vvvv this is commented out for 2 arms: we want the 2nd arm to be relatively close at all times
 
@@ -791,7 +1009,9 @@ class AllegroKukaTwoArmsBase(VecTask):
         max_keypoint_deltas = self.closest_keypoint_max_dist - self.keypoints_max_dist
 
         # update the values if we got closer to the target
-        self.closest_keypoint_max_dist = torch.minimum(self.closest_keypoint_max_dist, self.keypoints_max_dist)
+        self.closest_keypoint_max_dist = torch.minimum(
+            self.closest_keypoint_max_dist, self.keypoints_max_dist
+        )
 
         # clip between zero and +inf to turn deltas into rewards
         max_keypoint_deltas = torch.clip(max_keypoint_deltas, 0, 100)
@@ -803,12 +1023,24 @@ class AllegroKukaTwoArmsBase(VecTask):
         return keypoint_rew
 
     def _compute_resets(self, is_success):
-        resets = torch.where(self.object_pos[:, 2] < 0.1, torch.ones_like(self.reset_buf), self.reset_buf)  # fall
+        resets = torch.where(
+            self.object_pos[:, 2] < 0.1, torch.ones_like(self.reset_buf), self.reset_buf
+        )  # fall
         if self.max_consecutive_successes > 0:
             # Reset progress buffer if max_consecutive_successes > 0
-            self.progress_buf = torch.where(is_success > 0, torch.zeros_like(self.progress_buf), self.progress_buf)
-            resets = torch.where(self.successes >= self.max_consecutive_successes, torch.ones_like(resets), resets)
-        resets = torch.where(self.progress_buf >= self.max_episode_length - 1, torch.ones_like(resets), resets)
+            self.progress_buf = torch.where(
+                is_success > 0, torch.zeros_like(self.progress_buf), self.progress_buf
+            )
+            resets = torch.where(
+                self.successes >= self.max_consecutive_successes,
+                torch.ones_like(resets),
+                resets,
+            )
+        resets = torch.where(
+            self.progress_buf >= self.max_episode_length - 1,
+            torch.ones_like(resets),
+            resets,
+        )
         resets = self._extra_reset_rules(resets)
         return resets
 
@@ -844,7 +1076,13 @@ class AllegroKukaTwoArmsBase(VecTask):
         # We spread out the reward over "success_steps"
         bonus_rew = near_goal * (self.reach_goal_bonus / self.success_steps)
 
-        reward = fingertip_delta_rew + lifting_rew + lift_bonus_rew + keypoint_rew + bonus_rew
+        reward = (
+            fingertip_delta_rew
+            + lifting_rew
+            + lift_bonus_rew
+            + keypoint_rew
+            + bonus_rew
+        )
 
         self.rew_buf[:] = reward
 
@@ -881,16 +1119,24 @@ class AllegroKukaTwoArmsBase(VecTask):
         if self.eval_stats:
             frame: int = self.frame_since_restart
             n_frames = torch.empty_like(self.last_success_step).fill_(frame)
-            self.success_time = torch.where(is_success, n_frames - self.last_success_step, self.success_time)
-            self.last_success_step = torch.where(is_success, n_frames, self.last_success_step)
+            self.success_time = torch.where(
+                is_success, n_frames - self.last_success_step, self.success_time
+            )
+            self.last_success_step = torch.where(
+                is_success, n_frames, self.last_success_step
+            )
             mask_ = self.success_time > 0
             if any(mask_):
-                avg_time_mean = ((self.success_time * mask_).sum(dim=0) / mask_.sum(dim=0)).item()
+                avg_time_mean = (
+                    (self.success_time * mask_).sum(dim=0) / mask_.sum(dim=0)
+                ).item()
             else:
                 avg_time_mean = math.nan
 
             self.total_resets = self.total_resets + self.reset_buf.sum()
-            self.total_successes = self.total_successes + (self.successes * self.reset_buf).sum()
+            self.total_successes = (
+                self.total_successes + (self.successes * self.reset_buf).sum()
+            )
             self.total_num_resets += self.reset_buf
 
             reset_ids = self.reset_buf.nonzero().squeeze()
@@ -901,35 +1147,68 @@ class AllegroKukaTwoArmsBase(VecTask):
                 # The direct average shows the overall result more quickly, but slightly undershoots long term
                 # policy performance.
                 print(f"Max num successes: {self.successes.max().item()}")
-                print(f"Average consecutive successes: {self.prev_episode_successes.mean().item():.2f}")
-                print(f"Total num resets: {self.total_num_resets.sum().item()} --> {self.total_num_resets}")
-                print(f"Reset percentage: {(self.total_num_resets > 0).sum() / self.num_envs:.2%}")
-                print(f"Last ep successes: {self.prev_episode_successes.mean().item():.2f}")
-                print(f"Last ep true objective: {self.prev_episode_true_objective.mean().item():.2f}")
+                print(
+                    f"Average consecutive successes: {self.prev_episode_successes.mean().item():.2f}"
+                )
+                print(
+                    f"Total num resets: {self.total_num_resets.sum().item()} --> {self.total_num_resets}"
+                )
+                print(
+                    f"Reset percentage: {(self.total_num_resets > 0).sum() / self.num_envs:.2%}"
+                )
+                print(
+                    f"Last ep successes: {self.prev_episode_successes.mean().item():.2f}"
+                )
+                print(
+                    f"Last ep true objective: {self.prev_episode_true_objective.mean().item():.2f}"
+                )
 
-                self.eval_summaries.add_scalar("last_ep_successes", self.prev_episode_successes.mean().item(), frame)
                 self.eval_summaries.add_scalar(
-                    "last_ep_true_objective", self.prev_episode_true_objective.mean().item(), frame
+                    "last_ep_successes",
+                    self.prev_episode_successes.mean().item(),
+                    frame,
                 )
                 self.eval_summaries.add_scalar(
-                    "reset_stats/reset_percentage", (self.total_num_resets > 0).sum() / self.num_envs, frame
+                    "last_ep_true_objective",
+                    self.prev_episode_true_objective.mean().item(),
+                    frame,
                 )
-                self.eval_summaries.add_scalar("reset_stats/min_num_resets", self.total_num_resets.min().item(), frame)
+                self.eval_summaries.add_scalar(
+                    "reset_stats/reset_percentage",
+                    (self.total_num_resets > 0).sum() / self.num_envs,
+                    frame,
+                )
+                self.eval_summaries.add_scalar(
+                    "reset_stats/min_num_resets",
+                    self.total_num_resets.min().item(),
+                    frame,
+                )
 
-                self.eval_summaries.add_scalar("policy_speed/avg_success_time_frames", avg_time_mean, frame)
+                self.eval_summaries.add_scalar(
+                    "policy_speed/avg_success_time_frames", avg_time_mean, frame
+                )
                 frame_time = self.control_freq_inv * self.dt
                 self.eval_summaries.add_scalar(
-                    "policy_speed/avg_success_time_seconds", avg_time_mean * frame_time, frame
+                    "policy_speed/avg_success_time_seconds",
+                    avg_time_mean * frame_time,
+                    frame,
                 )
                 self.eval_summaries.add_scalar(
-                    "policy_speed/avg_success_per_minute", 60.0 / (avg_time_mean * frame_time), frame
+                    "policy_speed/avg_success_per_minute",
+                    60.0 / (avg_time_mean * frame_time),
+                    frame,
                 )
-                print(f"Policy speed (successes per minute): {60.0 / (avg_time_mean * frame_time):.2f}")
+                print(
+                    f"Policy speed (successes per minute): {60.0 / (avg_time_mean * frame_time):.2f}"
+                )
 
                 # create a matplotlib bar chart of the self.successes_count
                 import matplotlib.pyplot as plt
 
-                plt.bar(list(range(self.max_consecutive_successes + 1)), self.successes_count.cpu().numpy())
+                plt.bar(
+                    list(range(self.max_consecutive_successes + 1)),
+                    self.successes_count.cpu().numpy(),
+                )
                 plt.title("Successes histogram")
                 plt.xlabel("Successes")
                 plt.ylabel("Frequency")
@@ -960,7 +1239,9 @@ class AllegroKukaTwoArmsBase(VecTask):
                 self._palm_rot[:, arm_idx], self.palm_center_offset
             )
 
-        self.fingertip_state = self.rigid_body_states[:, self.allegro_fingertip_handles][:, :, 0:13]
+        self.fingertip_state = self.rigid_body_states[
+            :, self.allegro_fingertip_handles
+        ][:, :, 0:13]
         self.fingertip_pos = self.fingertip_state[:, :, 0:3]
         self.fingertip_rot = self.fingertip_state[:, :, 3:7]
 
@@ -973,26 +1254,38 @@ class AllegroKukaTwoArmsBase(VecTask):
         for arm_idx in range(self.num_arms):
             for i in range(self.num_fingertips):
                 finger_idx = arm_idx * self.num_fingertips + i
-                self.fingertip_pos_offset[:, finger_idx] = self.fingertip_pos[:, finger_idx] + quat_rotate(
+                self.fingertip_pos_offset[:, finger_idx] = self.fingertip_pos[
+                    :, finger_idx
+                ] + quat_rotate(
                     self.fingertip_rot[:, finger_idx], self.fingertip_offsets[:, i]
                 )
 
-        obj_pos_repeat = self.object_pos.unsqueeze(1).repeat(1, self.num_arms * self.num_fingertips, 1)
+        obj_pos_repeat = self.object_pos.unsqueeze(1).repeat(
+            1, self.num_arms * self.num_fingertips, 1
+        )
         self.fingertip_pos_rel_object = self.fingertip_pos_offset - obj_pos_repeat
         self.curr_fingertip_distances = torch.norm(
-            self.fingertip_pos_rel_object.view(self.num_envs, self.num_arms, self.num_fingertips, -1), dim=-1
+            self.fingertip_pos_rel_object.view(
+                self.num_envs, self.num_arms, self.num_fingertips, -1
+            ),
+            dim=-1,
         )
 
         # when episode ends or target changes we reset this to -1, this will initialize it to the actual distance on the 1st frame of the episode
         self.closest_fingertip_dist = torch.where(
-            self.closest_fingertip_dist < 0.0, self.curr_fingertip_distances, self.closest_fingertip_dist
+            self.closest_fingertip_dist < 0.0,
+            self.curr_fingertip_distances,
+            self.closest_fingertip_dist,
         )
 
         palm_center_repeat = self.palm_center_pos.unsqueeze(2).repeat(
             1, 1, self.num_fingertips, 1
         )  # [num_envs, num_arms, num_fingertips, 3] == [num_envs, 2, 4, 3]
-        self.fingertip_pos_rel_palm = self.fingertip_pos_offset - palm_center_repeat.view(
-            self.num_envs, self.num_arms * self.num_fingertips, 3
+        self.fingertip_pos_rel_palm = (
+            self.fingertip_pos_offset
+            - palm_center_repeat.view(
+                self.num_envs, self.num_arms * self.num_fingertips, 3
+            )
         )  # [num_envs, num_arms * num_fingertips, 3] == [num_envs, 8, 3]
 
         if self.fingertip_pos_rel_object_prev is None:
@@ -1008,10 +1301,16 @@ class AllegroKukaTwoArmsBase(VecTask):
 
         self.keypoints_rel_goal = self.obj_keypoint_pos - self.goal_keypoint_pos
 
-        palm_center_repeat = self.palm_center_pos.unsqueeze(2).repeat(1, 1, self.num_keypoints, 1)
-        obj_kp_pos_repeat = self.obj_keypoint_pos.unsqueeze(1).repeat(1, self.num_arms, 1, 1)
+        palm_center_repeat = self.palm_center_pos.unsqueeze(2).repeat(
+            1, 1, self.num_keypoints, 1
+        )
+        obj_kp_pos_repeat = self.obj_keypoint_pos.unsqueeze(1).repeat(
+            1, self.num_arms, 1, 1
+        )
         self.keypoints_rel_palm = obj_kp_pos_repeat - palm_center_repeat
-        self.keypoints_rel_palm = self.keypoints_rel_palm.view(self.num_envs, self.num_arms * self.num_keypoints, 3)
+        self.keypoints_rel_palm = self.keypoints_rel_palm.view(
+            self.num_envs, self.num_arms * self.num_keypoints, 3
+        )
 
         # self.keypoints_rel_palm = self.obj_keypoint_pos - palm_center_repeat.view(
         #     self.num_envs, self.num_arms * self.num_keypoints, 3
@@ -1025,7 +1324,9 @@ class AllegroKukaTwoArmsBase(VecTask):
         # this is the closest the keypoint had been to the target in the current episode (for the furthest keypoint of all)
         # make sure we initialize this value before using it for obs or rewards
         self.closest_keypoint_max_dist = torch.where(
-            self.closest_keypoint_max_dist < 0.0, self.keypoints_max_dist, self.closest_keypoint_max_dist
+            self.closest_keypoint_max_dist < 0.0,
+            self.keypoints_max_dist,
+            self.closest_keypoint_max_dist,
         )
 
         if self.obs_type == "full_state":
@@ -1056,14 +1357,16 @@ class AllegroKukaTwoArmsBase(VecTask):
 
         # palm pos
         num_palm_coords = 3 * self.num_arms
-        buf[:, ofs : ofs + num_palm_coords] = self.palm_center_pos.view(self.num_envs, num_palm_coords)
+        buf[:, ofs : ofs + num_palm_coords] = self.palm_center_pos.view(
+            self.num_envs, num_palm_coords
+        )
         ofs += num_palm_coords
 
         # palm rot, linvel, ang vel
         num_palm_rot_vel_angvel = 10 * self.num_arms
-        buf[:, ofs : ofs + num_palm_rot_vel_angvel] = self._palm_state[..., 3:13].reshape(
-            self.num_envs, num_palm_rot_vel_angvel
-        )
+        buf[:, ofs : ofs + num_palm_rot_vel_angvel] = self._palm_state[
+            ..., 3:13
+        ].reshape(self.num_envs, num_palm_rot_vel_angvel)
         ofs += num_palm_rot_vel_angvel
 
         # object rot, linvel, ang vel
@@ -1072,9 +1375,9 @@ class AllegroKukaTwoArmsBase(VecTask):
 
         # fingertip pos relative to the palm of the hand
         fingertip_rel_pos_size = 3 * self.num_arms * self.num_fingertips
-        buf[:, ofs : ofs + fingertip_rel_pos_size] = self.fingertip_pos_rel_palm.reshape(
-            self.num_envs, fingertip_rel_pos_size
-        )
+        buf[
+            :, ofs : ofs + fingertip_rel_pos_size
+        ] = self.fingertip_pos_rel_palm.reshape(self.num_envs, fingertip_rel_pos_size)
         ofs += fingertip_rel_pos_size
 
         # keypoint distances relative to the palm of the hand
@@ -1145,7 +1448,15 @@ class AllegroKukaTwoArmsBase(VecTask):
         q_x = torch.sqrt(1.0 - uvw[:, 0]) * (torch.cos(2 * np.pi * uvw[:, 1]))
         q_y = torch.sqrt(uvw[:, 0]) * (torch.sin(2 * np.pi * uvw[:, 2]))
         q_z = torch.sqrt(uvw[:, 0]) * (torch.cos(2 * np.pi * uvw[:, 2]))
-        new_rot = torch.cat((q_x.unsqueeze(-1), q_y.unsqueeze(-1), q_z.unsqueeze(-1), q_w.unsqueeze(-1)), dim=-1)
+        new_rot = torch.cat(
+            (
+                q_x.unsqueeze(-1),
+                q_y.unsqueeze(-1),
+                q_z.unsqueeze(-1),
+                q_w.unsqueeze(-1),
+            ),
+            dim=-1,
+        )
 
         return new_rot
 
@@ -1163,23 +1474,31 @@ class AllegroKukaTwoArmsBase(VecTask):
         table_width = 1.1
         obj_x_ofs = table_width / 2 - 0.2
 
-        left_right_random = torch_rand_float(-1.0, 1.0, (len(env_ids), 1), device=self.device)
+        left_right_random = torch_rand_float(
+            -1.0, 1.0, (len(env_ids), 1), device=self.device
+        )
         x_pos = torch.where(
             left_right_random > 0,
             obj_x_ofs * torch.ones_like(left_right_random),
             -obj_x_ofs * torch.ones_like(left_right_random),
         )
 
-        rand_pos_floats = torch_rand_float(-1.0, 1.0, (len(env_ids), 3), device=self.device)
+        rand_pos_floats = torch_rand_float(
+            -1.0, 1.0, (len(env_ids), 3), device=self.device
+        )
         self.root_state_tensor[obj_indices] = self.object_init_state[env_ids].clone()
 
         # indices 0..2 correspond to the object position
-        self.root_state_tensor[obj_indices, 0:1] = x_pos + self.reset_position_noise_x * rand_pos_floats[:, 0:1]
+        self.root_state_tensor[obj_indices, 0:1] = (
+            x_pos + self.reset_position_noise_x * rand_pos_floats[:, 0:1]
+        )
         self.root_state_tensor[obj_indices, 1:2] = (
-            self.object_init_state[env_ids, 1:2] + self.reset_position_noise_y * rand_pos_floats[:, 1:2]
+            self.object_init_state[env_ids, 1:2]
+            + self.reset_position_noise_y * rand_pos_floats[:, 1:2]
         )
         self.root_state_tensor[obj_indices, 2:3] = (
-            self.object_init_state[env_ids, 2:3] + self.reset_position_noise_z * rand_pos_floats[:, 2:3]
+            self.object_init_state[env_ids, 2:3]
+            + self.reset_position_noise_z * rand_pos_floats[:, 2:3]
         )
 
         new_object_rot = self.get_random_quat(env_ids)
@@ -1187,12 +1506,16 @@ class AllegroKukaTwoArmsBase(VecTask):
         # indices 3,4,5,6 correspond to the rotation quaternion
         self.root_state_tensor[obj_indices, 3:7] = new_object_rot
 
-        self.root_state_tensor[obj_indices, 7:13] = torch.zeros_like(self.root_state_tensor[obj_indices, 7:13])
+        self.root_state_tensor[obj_indices, 7:13] = torch.zeros_like(
+            self.root_state_tensor[obj_indices, 7:13]
+        )
 
         # since we reset the object, we also should update distances between fingers and the object
         self.closest_fingertip_dist[env_ids] = -1
 
-    def deferred_set_actor_root_state_tensor_indexed(self, obj_indices: List[Tensor]) -> None:
+    def deferred_set_actor_root_state_tensor_indexed(
+        self, obj_indices: List[Tensor]
+    ) -> None:
         self.set_actor_root_state_object_indices.extend(obj_indices)
 
     def set_actor_root_state_tensor_indexed(self) -> None:
@@ -1241,7 +1564,10 @@ class AllegroKukaTwoArmsBase(VecTask):
         delta_min = self.arm_hand_dof_lower_limits - self.hand_arm_default_dof_pos
 
         rand_dof_floats = torch_rand_float(
-            0.0, 1.0, (len(env_ids), self.num_arms * self.num_hand_arm_dofs), device=self.device
+            0.0,
+            1.0,
+            (len(env_ids), self.num_arms * self.num_hand_arm_dofs),
+            device=self.device,
         )
 
         rand_delta = delta_min + (delta_max - delta_min) * rand_dof_floats
@@ -1253,17 +1579,26 @@ class AllegroKukaTwoArmsBase(VecTask):
         self.cur_targets[env_ids, ...] = allegro_pos
 
         rand_vel_floats = torch_rand_float(
-            -1.0, 1.0, (len(env_ids), self.num_hand_arm_dofs * self.num_arms), device=self.device
+            -1.0,
+            1.0,
+            (len(env_ids), self.num_hand_arm_dofs * self.num_arms),
+            device=self.device,
         )
         self.arm_hand_dof_vel[env_ids, :] = self.reset_dof_vel_noise * rand_vel_floats
 
         arm_indices_gym = gymtorch.unwrap_tensor(arm_indices)
         num_arm_indices: int = len(arm_indices)
         self.gym.set_dof_position_target_tensor_indexed(
-            self.sim, gymtorch.unwrap_tensor(self.prev_targets), arm_indices_gym, num_arm_indices
+            self.sim,
+            gymtorch.unwrap_tensor(self.prev_targets),
+            arm_indices_gym,
+            num_arm_indices,
         )
         self.gym.set_dof_state_tensor_indexed(
-            self.sim, gymtorch.unwrap_tensor(self.dof_state), arm_indices_gym, num_arm_indices
+            self.sim,
+            gymtorch.unwrap_tensor(self.dof_state),
+            arm_indices_gym,
+            num_arm_indices,
         )
 
         object_indices = [self.object_indices[env_ids]]
@@ -1333,21 +1668,33 @@ class AllegroKukaTwoArmsBase(VecTask):
 
         self.prev_targets[...] = self.cur_targets[...]
 
-        self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(self.cur_targets))
+        self.gym.set_dof_position_target_tensor(
+            self.sim, gymtorch.unwrap_tensor(self.cur_targets)
+        )
 
         if self.force_scale > 0.0:
-            self.rb_forces *= torch.pow(self.force_decay, self.dt / self.force_decay_interval)
+            self.rb_forces *= torch.pow(
+                self.force_decay, self.dt / self.force_decay_interval
+            )
 
             # apply new forces
-            force_indices = (torch.rand(self.num_envs, device=self.device) < self.random_force_prob).nonzero()
+            force_indices = (
+                torch.rand(self.num_envs, device=self.device) < self.random_force_prob
+            ).nonzero()
             self.rb_forces[force_indices, self.object_rb_handles, :] = (
-                torch.randn(self.rb_forces[force_indices, self.object_rb_handles, :].shape, device=self.device)
+                torch.randn(
+                    self.rb_forces[force_indices, self.object_rb_handles, :].shape,
+                    device=self.device,
+                )
                 * self.object_rb_masses
                 * self.force_scale
             )
 
             self.gym.apply_rigid_body_force_tensors(
-                self.sim, gymtorch.unwrap_tensor(self.rb_forces), None, gymapi.LOCAL_SPACE
+                self.sim,
+                gymtorch.unwrap_tensor(self.rb_forces),
+                None,
+                gymapi.LOCAL_SPACE,
             )
 
     def post_physics_step(self):
@@ -1363,7 +1710,9 @@ class AllegroKukaTwoArmsBase(VecTask):
 
         # add rewards to observations
         reward_obs_scale = 0.01
-        obs_buf[:, reward_obs_ofs : reward_obs_ofs + 1] = rewards.unsqueeze(-1) * reward_obs_scale
+        obs_buf[:, reward_obs_ofs : reward_obs_ofs + 1] = (
+            rewards.unsqueeze(-1) * reward_obs_scale
+        )
 
         self.clamp_obs(obs_buf)
 
@@ -1378,8 +1727,12 @@ class AllegroKukaTwoArmsBase(VecTask):
 
             sphere_pose = gymapi.Transform()
             sphere_pose.r = gymapi.Quat(0, 0, 0, 1)
-            sphere_geom = gymutil.WireframeSphereGeometry(0.01, 8, 8, sphere_pose, color=(1, 1, 0))
-            sphere_geom_white = gymutil.WireframeSphereGeometry(0.02, 8, 8, sphere_pose, color=(1, 1, 1))
+            sphere_geom = gymutil.WireframeSphereGeometry(
+                0.01, 8, 8, sphere_pose, color=(1, 1, 0)
+            )
+            sphere_geom_white = gymutil.WireframeSphereGeometry(
+                0.02, 8, 8, sphere_pose, color=(1, 1, 1)
+            )
 
             palm_center_pos_cpu = self.palm_center_pos.cpu().numpy()
             palm_rot_cpu = self._palm_rot.cpu().numpy()
@@ -1388,7 +1741,13 @@ class AllegroKukaTwoArmsBase(VecTask):
                 palm_center_transform = gymapi.Transform()
                 palm_center_transform.p = gymapi.Vec3(*palm_center_pos_cpu[i])
                 palm_center_transform.r = gymapi.Quat(*palm_rot_cpu[i])
-                gymutil.draw_lines(sphere_geom_white, self.gym, self.viewer, self.envs[i], palm_center_transform)
+                gymutil.draw_lines(
+                    sphere_geom_white,
+                    self.gym,
+                    self.viewer,
+                    self.envs[i],
+                    palm_center_transform,
+                )
 
             for j in range(self.num_fingertips):
                 fingertip_pos_cpu = self.fingertip_pos_offset[:, j].cpu().numpy()
@@ -1399,7 +1758,13 @@ class AllegroKukaTwoArmsBase(VecTask):
                     fingertip_transform.p = gymapi.Vec3(*fingertip_pos_cpu[i])
                     fingertip_transform.r = gymapi.Quat(*fingertip_rot_cpu[i])
 
-                    gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[i], fingertip_transform)
+                    gymutil.draw_lines(
+                        sphere_geom,
+                        self.gym,
+                        self.viewer,
+                        self.envs[i],
+                        fingertip_transform,
+                    )
 
             for j in range(self.num_keypoints):
                 keypoint_pos_cpu = self.obj_keypoint_pos[:, j].cpu().numpy()
@@ -1408,8 +1773,20 @@ class AllegroKukaTwoArmsBase(VecTask):
                 for i in range(self.num_envs):
                     keypoint_transform = gymapi.Transform()
                     keypoint_transform.p = gymapi.Vec3(*keypoint_pos_cpu[i])
-                    gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[i], keypoint_transform)
+                    gymutil.draw_lines(
+                        sphere_geom,
+                        self.gym,
+                        self.viewer,
+                        self.envs[i],
+                        keypoint_transform,
+                    )
 
                     goal_keypoint_transform = gymapi.Transform()
                     goal_keypoint_transform.p = gymapi.Vec3(*goal_keypoint_pos_cpu[i])
-                    gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[i], goal_keypoint_transform)
+                    gymutil.draw_lines(
+                        sphere_geom,
+                        self.gym,
+                        self.viewer,
+                        self.envs[i],
+                        goal_keypoint_transform,
+                    )

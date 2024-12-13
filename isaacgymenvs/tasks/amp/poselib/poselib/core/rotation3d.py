@@ -145,7 +145,7 @@ def quat_identity(shape: List[int]):
 
 @torch.jit.script
 def quat_from_angle_axis(angle, axis, degree: bool = False):
-    """ Create a 3D rotation from angle and axis of rotation. The rotation is counter-clockwise 
+    """Create a 3D rotation from angle and axis of rotation. The rotation is counter-clockwise
     along the axis.
 
     The rotation can be interpreted as a_R_b where frame "b" is the new frame that
@@ -311,7 +311,6 @@ def transform_identity(shape: List[int]):
     return transform_from_rotation_translation(r, t)
 
 
-
 @torch.jit.script
 def transform_rotation(x):
     """Get rotation from transform"""
@@ -469,4 +468,3 @@ def euclidean_to_transform(transformation_matrix):
         ),
         t=euclidean_translation(transformation_matrix),
     )
-

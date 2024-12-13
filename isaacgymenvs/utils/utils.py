@@ -27,7 +27,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # python
-#import pwd
+# import pwd
 import getpass
 import tempfile
 import time
@@ -50,6 +50,7 @@ def retry(times, exceptions):
     :param exceptions: Lists of exceptions that trigger a retry attempt
     :type exceptions: Tuple of Exceptions
     """
+
     def decorator(func):
         def newfn(*args, **kwargs):
             attempt = 0
@@ -57,16 +58,20 @@ def retry(times, exceptions):
                 try:
                     return func(*args, **kwargs)
                 except exceptions:
-                    print(f'Exception thrown when attempting to run {func}, attempt {attempt} out of {times}')
+                    print(
+                        f"Exception thrown when attempting to run {func}, attempt {attempt} out of {times}"
+                    )
                     time.sleep(min(2 ** attempt, 30))
                     attempt += 1
 
             return func(*args, **kwargs)
+
         return newfn
+
     return decorator
 
 
-def flatten_dict(d, prefix='', separator='.'):
+def flatten_dict(d, prefix="", separator="."):
     res = dict()
     for key, value in d.items():
         if isinstance(value, (dict, OrderedDict)):
@@ -78,14 +83,21 @@ def flatten_dict(d, prefix='', separator='.'):
 
 
 def set_np_formatting():
-    """ formats numpy print """
-    np.set_printoptions(edgeitems=30, infstr='inf',
-                        linewidth=4000, nanstr='nan', precision=2,
-                        suppress=False, threshold=10000, formatter=None)
+    """formats numpy print"""
+    np.set_printoptions(
+        edgeitems=30,
+        infstr="inf",
+        linewidth=4000,
+        nanstr="nan",
+        precision=2,
+        suppress=False,
+        threshold=10000,
+        formatter=None,
+    )
 
 
 def set_seed(seed, torch_deterministic=False, rank=0):
-    """ set seed across modules """
+    """set seed across modules"""
     if seed == -1 and torch_deterministic:
         seed = 42 + rank
     elif seed == -1:
@@ -98,13 +110,13 @@ def set_seed(seed, torch_deterministic=False, rank=0):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
     if torch_deterministic:
         # refer to https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility
-        os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
+        os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
         torch.use_deterministic_algorithms(True)
@@ -114,19 +126,22 @@ def set_seed(seed, torch_deterministic=False, rank=0):
 
     return seed
 
+
 def nested_dict_set_attr(d, key, val):
-    pre, _, post = key.partition('.')
+    pre, _, post = key.partition(".")
     if post:
         nested_dict_set_attr(d[pre], post, val)
     else:
         d[key] = val
-    
+
+
 def nested_dict_get_attr(d, key):
-    pre, _, post = key.partition('.')
+    pre, _, post = key.partition(".")
     if post:
         return nested_dict_get_attr(d[pre], post)
     else:
         return d[key]
+
 
 def ensure_dir_exists(path):
     if not os.path.exists(path):
@@ -152,7 +167,8 @@ def get_username():
 
 
 def project_tmp_dir():
-    tmp_dir_name = f'ige_{get_username()}'
+    tmp_dir_name = f"ige_{get_username()}"
     return safe_ensure_dir_exists(join(tempfile.gettempdir(), tmp_dir_name))
+
 
 # EOF

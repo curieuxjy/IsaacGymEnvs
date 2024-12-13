@@ -9,8 +9,12 @@ from os.path import join
 
 
 def add_os_parallelism_args(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
-    parser.add_argument("--num_gpus", default=1, type=int, help="How many local GPUs to use")
-    parser.add_argument("--max_parallel", default=4, type=int, help="Maximum simultaneous experiments")
+    parser.add_argument(
+        "--num_gpus", default=1, type=int, help="How many local GPUs to use"
+    )
+    parser.add_argument(
+        "--max_parallel", default=4, type=int, help="Maximum simultaneous experiments"
+    )
     parser.add_argument(
         "--experiments_per_gpu",
         default=-1,
@@ -37,7 +41,9 @@ def run(run_description, args):
 
     print("Starting processes with base cmds: %r", [e.cmd for e in experiments])
     print(f"Max parallel processes is {max_parallel}")
-    print(f"Monitor log files using\n\n\ttail -f train_dir/{run_description.run_name}/**/**/sf_log.txt\n\n")
+    print(
+        f"Monitor log files using\n\n\ttail -f train_dir/{run_description.run_name}/**/**/sf_log.txt\n\n"
+    )
 
     processes = []
     processes_per_gpu = {g: [] for g in range(args.num_gpus)}
@@ -50,7 +56,9 @@ def run(run_description, args):
         gpu_available_processes = 0
 
         for gpu_id in range(args.num_gpus):
-            available_processes = args.experiments_per_gpu - len(processes_per_gpu[gpu_id])
+            available_processes = args.experiments_per_gpu - len(
+                processes_per_gpu[gpu_id]
+            )
             if available_processes > gpu_available_processes:
                 gpu_available_processes = available_processes
                 least_busy_gpu = gpu_id
@@ -102,7 +110,9 @@ def run(run_description, args):
                     print(f"Adding env variable {key} {value}")
                     envvars[str(key)] = str(value)
 
-            process = subprocess.Popen(cmd_tokens, stdout=None, stderr=None, env=envvars)
+            process = subprocess.Popen(
+                cmd_tokens, stdout=None, stderr=None, env=envvars
+            )
             process.gpu_id = best_gpu
             process.proc_cmd = cmd
 
@@ -112,7 +122,9 @@ def run(run_description, args):
                 processes_per_gpu[process.gpu_id].append(process.proc_cmd)
 
             print(f"Started process {process.proc_cmd} GPU {process.gpu_id}")
-            print(f"Waiting for {args.pause_between} seconds before starting next process")
+            print(
+                f"Waiting for {args.pause_between} seconds before starting next process"
+            )
             time.sleep(args.pause_between)
 
             next_experiment = next(experiments, None)
@@ -127,14 +139,19 @@ def run(run_description, args):
                     processes_per_gpu[process.gpu_id].remove(process.proc_cmd)
                 print(f"Process finished {process.proc_cmd}, {process.returncode}")
                 if process.returncode != 0:
-                    failed_processes.append((process.proc_cmd, process.pid, process.returncode))
+                    failed_processes.append(
+                        (process.proc_cmd, process.pid, process.returncode)
+                    )
                     print(f"WARNING: RETURN CODE IS {process.returncode}")
 
         processes = remaining_processes
 
         if time.time() - last_log_time > log_interval:
             if failed_processes:
-                print(f"Failed processes:", ", ".join([f"PID: {p[1]} code: {p[2]}" for p in failed_processes]))
+                print(
+                    f"Failed processes:",
+                    ", ".join([f"PID: {p[1]} code: {p[2]}" for p in failed_processes]),
+                )
             last_log_time = time.time()
 
         time.sleep(0.1)

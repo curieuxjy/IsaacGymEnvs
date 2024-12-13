@@ -318,7 +318,7 @@ def get_new_max_disp(curr_success, cfg_task, curr_max_disp):
         new_max_disp = min(
             curr_max_disp + cfg_task.rl.curriculum_height_step[1],
             cfg_task.rl.curriculum_height_bound[1],
-        )  
+        )
 
     else:
         # Maintain current max downward displacement

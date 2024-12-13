@@ -9,7 +9,12 @@ from isaacgymenvs.pbt.launcher.run_slurm import add_slurm_args, run_slurm
 
 def launcher_argparser(args) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--train_dir", default="./train_dir", type=str, help="Directory for sub-experiments")
+    parser.add_argument(
+        "--train_dir",
+        default="./train_dir",
+        type=str,
+        help="Directory for sub-experiments",
+    )
     parser.add_argument(
         "--run",
         default=None,
@@ -23,9 +28,17 @@ def launcher_argparser(args) -> argparse.ArgumentParser:
         choices=["processes", "slurm", "ngc"],
         help="Launcher backend, use OS multiprocessing by default",
     )
-    parser.add_argument("--pause_between", default=1, type=int, help="Pause in seconds between processes")
     parser.add_argument(
-        "--experiment_suffix", default="", type=str, help="Append this to the name of the experiment dir"
+        "--pause_between",
+        default=1,
+        type=int,
+        help="Pause in seconds between processes",
+    )
+    parser.add_argument(
+        "--experiment_suffix",
+        default="",
+        type=str,
+        help="Append this to the name of the experiment dir",
     )
 
     partial_cfg, _ = parser.parse_known_args(args)

@@ -45,7 +45,7 @@ from rl_games.common import vecenv
 import torch
 from torch import optim
 
-import isaacgymenvs.learning.common_agent as common_agent 
+import isaacgymenvs.learning.common_agent as common_agent
 import isaacgymenvs.learning.gen_amp as gen_amp
 import isaacgymenvs.learning.gen_amp_models as gen_amp_models
 import isaacgymenvs.learning.gen_amp_network_builder as gen_amp_network_builder
@@ -55,25 +55,25 @@ from tensorboardX import SummaryWriter
 
 class HRLAgent(common_agent.CommonAgent):
     def __init__(self, base_name, config):
-        with open(os.path.join(os.getcwd(), config['llc_config']), 'r') as f:
+        with open(os.path.join(os.getcwd(), config["llc_config"]), "r") as f:
             llc_config = yaml.load(f, Loader=yaml.SafeLoader)
-            llc_config_params = llc_config['params']
-            self._latent_dim = llc_config_params['config']['latent_dim']
-        
+            llc_config_params = llc_config["params"]
+            self._latent_dim = llc_config_params["config"]["latent_dim"]
+
         super().__init__(base_name, config)
 
         self._task_size = self.vec_env.env.get_task_obs_size()
-        
-        self._llc_steps = config['llc_steps']
-        llc_checkpoint = config['llc_checkpoint']
-        assert(llc_checkpoint != "")
+
+        self._llc_steps = config["llc_steps"]
+        llc_checkpoint = config["llc_checkpoint"]
+        assert llc_checkpoint != ""
         self._build_llc(llc_config_params, llc_checkpoint)
 
         return
 
     def env_step(self, actions):
         actions = self.preprocess_actions(actions)
-        obs = self.obs['obs']
+        obs = self.obs["obs"]
 
         rewards = 0.0
         done_count = 0.0
@@ -91,11 +91,21 @@ class HRLAgent(common_agent.CommonAgent):
         if self.is_tensor_obses:
             if self.value_size == 1:
                 rewards = rewards.unsqueeze(1)
-            return self.obs_to_tensors(obs), rewards.to(self.ppo_device), dones.to(self.ppo_device), infos
+            return (
+                self.obs_to_tensors(obs),
+                rewards.to(self.ppo_device),
+                dones.to(self.ppo_device),
+                infos,
+            )
         else:
             if self.value_size == 1:
                 rewards = np.expand_dims(rewards, axis=1)
-            return self.obs_to_tensors(obs), torch.from_numpy(rewards).to(self.ppo_device).float(), torch.from_numpy(dones).to(self.ppo_device), infos
+            return (
+                self.obs_to_tensors(obs),
+                torch.from_numpy(rewards).to(self.ppo_device).float(),
+                torch.from_numpy(dones).to(self.ppo_device),
+                infos,
+            )
 
     def cast_obs(self, obs):
         obs = super().cast_obs(obs)
@@ -114,14 +124,14 @@ class HRLAgent(common_agent.CommonAgent):
         return
 
     def _build_llc(self, config_params, checkpoint_file):
-        network_params = config_params['network']
+        network_params = config_params["network"]
         network_builder = gen_amp_network_builder.GenAMPBuilder()
         network_builder.load(network_params)
 
         network = gen_amp_models.ModelGenAMPContinuous(network_builder)
         llc_agent_config = self._build_llc_agent_config(config_params, network)
 
-        self._llc_agent = gen_amp.GenAMPAgent('llc', llc_agent_config)
+        self._llc_agent = gen_amp.GenAMPAgent("llc", llc_agent_config)
         self._llc_agent.restore(checkpoint_file)
         print("Loaded LLC checkpoint from {:s}".format(checkpoint_file))
         self._llc_agent.set_eval()
@@ -129,16 +139,18 @@ class HRLAgent(common_agent.CommonAgent):
 
     def _build_llc_agent_config(self, config_params, network):
         llc_env_info = copy.deepcopy(self.env_info)
-        obs_space = llc_env_info['observation_space']
+        obs_space = llc_env_info["observation_space"]
         obs_size = obs_space.shape[0]
         obs_size -= self._task_size
-        llc_env_info['observation_space'] = spaces.Box(obs_space.low[:obs_size], obs_space.high[:obs_size])
+        llc_env_info["observation_space"] = spaces.Box(
+            obs_space.low[:obs_size], obs_space.high[:obs_size]
+        )
 
-        config = config_params['config']
-        config['network'] = network
-        config['num_actors'] = self.num_actors
-        config['features'] = {'observer' : self.algo_observer}
-        config['env_info'] = llc_env_info
+        config = config_params["config"]
+        config["network"] = network
+        config["num_actors"] = self.num_actors
+        config["features"] = {"observer": self.algo_observer}
+        config["env_info"] = llc_env_info
 
         return config
 
@@ -147,7 +159,9 @@ class HRLAgent(common_agent.CommonAgent):
         processed_obs = self._llc_agent._preproc_obs(llc_obs)
         z = torch.nn.functional.normalize(actions, dim=-1)
 
-        mu, _ = self._llc_agent.model.a2c_network.eval_actor(obs=processed_obs, amp_latents=z)
+        mu, _ = self._llc_agent.model.a2c_network.eval_actor(
+            obs=processed_obs, amp_latents=z
+        )
         llc_action = mu
         llc_action = self._llc_agent.preprocess_actions(llc_action)
 
@@ -155,5 +169,5 @@ class HRLAgent(common_agent.CommonAgent):
 
     def _extract_llc_obs(self, obs):
         obs_size = obs.shape[-1]
-        llc_obs = obs[..., :obs_size - self._task_size]
+        llc_obs = obs[..., : obs_size - self._task_size]
         return llc_obs

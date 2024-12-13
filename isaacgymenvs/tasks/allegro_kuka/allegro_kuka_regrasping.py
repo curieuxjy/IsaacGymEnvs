@@ -35,15 +35,35 @@ from torch import Tensor
 from isaacgymenvs.utils.torch_jit_utils import to_torch, torch_rand_float
 
 from isaacgymenvs.tasks.allegro_kuka.allegro_kuka_base import AllegroKukaBase
-from isaacgymenvs.tasks.allegro_kuka.allegro_kuka_utils import tolerance_curriculum, tolerance_successes_objective
+from isaacgymenvs.tasks.allegro_kuka.allegro_kuka_utils import (
+    tolerance_curriculum,
+    tolerance_successes_objective,
+)
 
 
 class AllegroKukaRegrasping(AllegroKukaBase):
-    def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
+    def __init__(
+        self,
+        cfg,
+        rl_device,
+        sim_device,
+        graphics_device_id,
+        headless,
+        virtual_screen_capture,
+        force_render,
+    ):
         self.goal_object_indices = []
         self.goal_asset = None
 
-        super().__init__(cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render)
+        super().__init__(
+            cfg,
+            rl_device,
+            sim_device,
+            graphics_device_id,
+            headless,
+            virtual_screen_capture,
+            force_render,
+        )
 
     def _object_keypoint_offsets(self):
         """Regrasping task uses only a single object keypoint since we do not care about object orientation."""
@@ -53,7 +73,10 @@ class AllegroKukaRegrasping(AllegroKukaBase):
         goal_asset_options = gymapi.AssetOptions()
         goal_asset_options.disable_gravity = True
         self.goal_asset = self.gym.load_asset(
-            self.sim, object_asset_root, self.asset_files_dict["ball"], goal_asset_options
+            self.sim,
+            object_asset_root,
+            self.asset_files_dict["ball"],
+            goal_asset_options,
         )
         goal_rb_count = self.gym.get_asset_rigid_body_count(self.goal_asset)
         goal_shapes_count = self.gym.get_asset_rigid_shape_count(self.goal_asset)
@@ -63,15 +86,27 @@ class AllegroKukaRegrasping(AllegroKukaBase):
         goal_start_pose = gymapi.Transform()
         goal_asset = self.goal_asset
         goal_handle = self.gym.create_actor(
-            env_ptr, goal_asset, goal_start_pose, "goal_object", env_idx + self.num_envs, 0, 0
+            env_ptr,
+            goal_asset,
+            goal_start_pose,
+            "goal_object",
+            env_idx + self.num_envs,
+            0,
+            0,
         )
         self.gym.set_actor_scale(env_ptr, goal_handle, 0.5)
-        self.gym.set_rigid_body_color(env_ptr, goal_handle, 0, gymapi.MESH_VISUAL, gymapi.Vec3(0.6, 0.72, 0.98))
-        goal_object_idx = self.gym.get_actor_index(env_ptr, goal_handle, gymapi.DOMAIN_SIM)
+        self.gym.set_rigid_body_color(
+            env_ptr, goal_handle, 0, gymapi.MESH_VISUAL, gymapi.Vec3(0.6, 0.72, 0.98)
+        )
+        goal_object_idx = self.gym.get_actor_index(
+            env_ptr, goal_handle, gymapi.DOMAIN_SIM
+        )
         self.goal_object_indices.append(goal_object_idx)
 
     def _after_envs_created(self):
-        self.goal_object_indices = to_torch(self.goal_object_indices, dtype=torch.long, device=self.device)
+        self.goal_object_indices = to_torch(
+            self.goal_object_indices, dtype=torch.long, device=self.device
+        )
 
     def _reset_target(self, env_ids: Tensor) -> None:
         target_volume_origin = self.target_volume_origin
@@ -81,11 +116,15 @@ class AllegroKukaRegrasping(AllegroKukaBase):
         target_volume_max_coord = target_volume_origin + target_volume_extent[:, 1]
         target_volume_size = target_volume_max_coord - target_volume_min_coord
 
-        rand_pos_floats = torch_rand_float(0.0, 1.0, (len(env_ids), 3), device=self.device)
+        rand_pos_floats = torch_rand_float(
+            0.0, 1.0, (len(env_ids), 3), device=self.device
+        )
         target_coords = target_volume_min_coord + rand_pos_floats * target_volume_size
         self.goal_states[env_ids, 0:3] = target_coords
 
-        self.root_state_tensor[self.goal_object_indices[env_ids], 0:3] = self.goal_states[env_ids, 0:3]
+        self.root_state_tensor[
+            self.goal_object_indices[env_ids], 0:3
+        ] = self.goal_states[env_ids, 0:3]
 
         # we also reset the object to its initial position
         self.reset_object_pose(env_ids)
@@ -106,7 +145,10 @@ class AllegroKukaRegrasping(AllegroKukaBase):
 
     def _true_objective(self) -> Tensor:
         true_objective = tolerance_successes_objective(
-            self.success_tolerance, self.initial_tolerance, self.target_tolerance, self.successes
+            self.success_tolerance,
+            self.initial_tolerance,
+            self.target_tolerance,
+            self.successes,
         )
         return true_objective
 

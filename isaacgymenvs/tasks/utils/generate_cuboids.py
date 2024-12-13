@@ -5,8 +5,10 @@ from jinja2 import Environment, select_autoescape, FileSystemLoader
 
 
 def generate_assets(scales, min_volume, max_volume, generated_assets_dir, base_mesh):
-    template_dir = join(os.path.dirname(os.path.abspath(__file__)), "../../../assets/asset_templates")
-    print(f'Assets template dir: {template_dir}')
+    template_dir = join(
+        os.path.dirname(os.path.abspath(__file__)), "../../../assets/asset_templates"
+    )
+    print(f"Assets template dir: {template_dir}")
 
     env = Environment(
         loader=FileSystemLoader(template_dir),
@@ -31,10 +33,12 @@ def generate_assets(scales, min_volume, max_volume, generated_assets_dir, base_m
                     # skip thin "plates"
                     continue
 
-                asset = template.render(base_mesh=base_mesh,
-                                        x_scale=cube_size_m * (x_scale / 100),
-                                        y_scale=cube_size_m * (y_scale / 100),
-                                        z_scale=cube_size_m * (z_scale / 100))
+                asset = template.render(
+                    base_mesh=base_mesh,
+                    x_scale=cube_size_m * (x_scale / 100),
+                    y_scale=cube_size_m * (y_scale / 100),
+                    z_scale=cube_size_m * (z_scale / 100),
+                )
                 fname = f"{idx:03d}_cube_{x_scale}_{y_scale}_{z_scale}.urdf"
                 idx += 1
                 with open(join(generated_assets_dir, fname), "w") as fobj:

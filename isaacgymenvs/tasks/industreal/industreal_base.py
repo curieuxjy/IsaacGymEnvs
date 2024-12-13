@@ -353,18 +353,19 @@ class IndustRealBase(FactoryBase, FactoryABCBase):
     def generate_ctrl_signals(self):
         """Get Jacobian. Set Franka DOF position targets or DOF torques."""
         # Get desired Jacobian
-        if self.cfg_ctrl['jacobian_type'] == 'geometric':
+        if self.cfg_ctrl["jacobian_type"] == "geometric":
             self.fingertip_midpoint_jacobian_tf = self.fingertip_centered_jacobian
-        elif self.cfg_ctrl['jacobian_type'] == 'analytic':
+        elif self.cfg_ctrl["jacobian_type"] == "analytic":
             self.fingertip_midpoint_jacobian_tf = fc.get_analytic_jacobian(
                 fingertip_quat=self.fingertip_quat,
                 fingertip_jacobian=self.fingertip_centered_jacobian,
                 num_envs=self.num_envs,
-                device=self.device)
+                device=self.device,
+            )
         # Set PD joint pos target or joint torque
-        if self.cfg_ctrl['motor_ctrl_mode'] == 'gym':
+        if self.cfg_ctrl["motor_ctrl_mode"] == "gym":
             self._set_dof_pos_target()
-        elif self.cfg_ctrl['motor_ctrl_mode'] == 'manual':
+        elif self.cfg_ctrl["motor_ctrl_mode"] == "manual":
             self._set_dof_torque()
 
     def _set_dof_pos_target(self):
@@ -378,11 +379,15 @@ class IndustRealBase(FactoryBase, FactoryABCBase):
             ctrl_target_fingertip_midpoint_pos=self.ctrl_target_fingertip_centered_pos,
             ctrl_target_fingertip_midpoint_quat=self.ctrl_target_fingertip_centered_quat,
             ctrl_target_gripper_dof_pos=self.ctrl_target_gripper_dof_pos,
-            device=self.device)
-        self.gym.set_dof_position_target_tensor_indexed(self.sim,
-                                                        gymtorch.unwrap_tensor(self.ctrl_target_dof_pos),
-                                                        gymtorch.unwrap_tensor(self.franka_actor_ids_sim),
-                                                        len(self.franka_actor_ids_sim))
+            device=self.device,
+        )
+        self.gym.set_dof_position_target_tensor_indexed(
+            self.sim,
+            gymtorch.unwrap_tensor(self.ctrl_target_dof_pos),
+            gymtorch.unwrap_tensor(self.franka_actor_ids_sim),
+            len(self.franka_actor_ids_sim),
+        )
+
     def _set_dof_torque(self):
         """Set Franka DOF torque to move fingertips towards target pose."""
         self.dof_torque = fc.compute_dof_torque(
@@ -401,11 +406,14 @@ class IndustRealBase(FactoryBase, FactoryABCBase):
             ctrl_target_fingertip_midpoint_pos=self.ctrl_target_fingertip_centered_pos,
             ctrl_target_fingertip_midpoint_quat=self.ctrl_target_fingertip_centered_quat,
             ctrl_target_fingertip_contact_wrench=self.ctrl_target_fingertip_contact_wrench,
-            device=self.device)
-        self.gym.set_dof_actuation_force_tensor_indexed(self.sim,
-                                                        gymtorch.unwrap_tensor(self.dof_torque),
-                                                        gymtorch.unwrap_tensor(self.franka_actor_ids_sim),
-                                                        len(self.franka_actor_ids_sim))
+            device=self.device,
+        )
+        self.gym.set_dof_actuation_force_tensor_indexed(
+            self.sim,
+            gymtorch.unwrap_tensor(self.dof_torque),
+            gymtorch.unwrap_tensor(self.franka_actor_ids_sim),
+            len(self.franka_actor_ids_sim),
+        )
 
     def simulate_and_refresh(self):
         """Simulate one step, refresh tensors, and render results."""
@@ -437,7 +445,7 @@ class IndustRealBase(FactoryBase, FactoryABCBase):
         """Move gripper to control target pose."""
 
         for _ in range(sim_steps):
-            # NOTE: midpoint is calculated based on the midpoint between the actual gripper finger pos, 
+            # NOTE: midpoint is calculated based on the midpoint between the actual gripper finger pos,
             # and centered is calculated with the assumption that the gripper fingers are perfectly mirrored.
             # Here we **intentionally** use *_centered_* pos and quat instead of *_midpoint_*,
             # since the fingertips are exactly mirrored in the real world.

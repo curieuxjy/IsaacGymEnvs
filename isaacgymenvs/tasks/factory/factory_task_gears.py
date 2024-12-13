@@ -43,39 +43,63 @@ import torch
 from isaacgym import gymapi, gymtorch
 from isaacgymenvs.tasks.factory.factory_env_gears import FactoryEnvGears
 from isaacgymenvs.tasks.factory.factory_schema_class_task import FactoryABCTask
-from isaacgymenvs.tasks.factory.factory_schema_config_task import FactorySchemaConfigTask
+from isaacgymenvs.tasks.factory.factory_schema_config_task import (
+    FactorySchemaConfigTask,
+)
 
 
 class FactoryTaskGears(FactoryEnvGears, FactoryABCTask):
-
-    def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
+    def __init__(
+        self,
+        cfg,
+        rl_device,
+        sim_device,
+        graphics_device_id,
+        headless,
+        virtual_screen_capture,
+        force_render,
+    ):
         """Initialize instance variables. Initialize task superclass."""
 
-        super().__init__(cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render)
+        super().__init__(
+            cfg,
+            rl_device,
+            sim_device,
+            graphics_device_id,
+            headless,
+            virtual_screen_capture,
+            force_render,
+        )
 
         self.cfg = cfg
         self._get_task_yaml_params()
         if self.viewer != None:
             self._set_viewer_params()
         if self.cfg_base.mode.export_scene:
-            self.export_scene(label='factory_task_gears')
+            self.export_scene(label="factory_task_gears")
 
     def _get_task_yaml_params(self):
         """Initialize instance variables from YAML files."""
 
         cs = hydra.core.config_store.ConfigStore.instance()
-        cs.store(name='factory_schema_config_task', node=FactorySchemaConfigTask)
+        cs.store(name="factory_schema_config_task", node=FactorySchemaConfigTask)
 
         self.cfg_task = omegaconf.OmegaConf.create(self.cfg)
-        self.max_episode_length = self.cfg_task.rl.max_episode_length  # required instance var for VecTask
+        self.max_episode_length = (
+            self.cfg_task.rl.max_episode_length
+        )  # required instance var for VecTask
 
-        asset_info_path = '../../assets/factory/yaml/factory_asset_info_gears.yaml'  # relative to Gym's Hydra search path (cfg dir)
+        asset_info_path = "../../assets/factory/yaml/factory_asset_info_gears.yaml"  # relative to Gym's Hydra search path (cfg dir)
         self.asset_info_gears = hydra.compose(config_name=asset_info_path)
-        self.asset_info_gears = self.asset_info_gears['']['']['']['']['']['']['assets']['factory']['yaml']  # strip superfluous nesting
+        self.asset_info_gears = self.asset_info_gears[""][""][""][""][""][""]["assets"][
+            "factory"
+        ][
+            "yaml"
+        ]  # strip superfluous nesting
 
-        ppo_path = 'train/FactoryTaskGearsPPO.yaml'  # relative to Gym's Hydra search path (cfg dir)
+        ppo_path = "train/FactoryTaskGearsPPO.yaml"  # relative to Gym's Hydra search path (cfg dir)
         self.cfg_ppo = hydra.compose(config_name=ppo_path)
-        self.cfg_ppo = self.cfg_ppo['train']  # strip superfluous nesting
+        self.cfg_ppo = self.cfg_ppo["train"]  # strip superfluous nesting
 
     def _acquire_task_tensors(self):
         """Acquire tensors."""
@@ -92,7 +116,9 @@ class FactoryTaskGears(FactoryEnvGears, FactoryABCTask):
         if len(env_ids) > 0:
             self.reset_idx(env_ids)
 
-        self._actions = actions.clone().to(self.device)  # shape = (num_envs, num_actions); values = [-1, 1]
+        self._actions = actions.clone().to(
+            self.device
+        )  # shape = (num_envs, num_actions); values = [-1, 1]
 
     def post_physics_step(self):
         """Step buffers. Refresh tensors. Compute observations and reward."""
@@ -140,23 +166,37 @@ class FactoryTaskGears(FactoryEnvGears, FactoryABCTask):
         # shape of dof_vel = (num_envs, num_dofs)
 
         # Initialize Franka to middle of joint limits, plus joint noise
-        franka_dof_props = self.gym.get_actor_dof_properties(self.env_ptrs[0],
-                                                             self.franka_handles[0])  # same across all envs
-        lower_lims = franka_dof_props['lower']
-        upper_lims = franka_dof_props['upper']
-        self.dof_pos[:, 0:self.franka_num_dofs] = torch.tensor((lower_lims + upper_lims) * 0.5, device=self.device) \
-                                                  + (torch.rand((self.num_envs, 1), device=self.device) * 2.0 - 1.0) * self.cfg_task.randomize.joint_noise * math.pi / 180
+        franka_dof_props = self.gym.get_actor_dof_properties(
+            self.env_ptrs[0], self.franka_handles[0]
+        )  # same across all envs
+        lower_lims = franka_dof_props["lower"]
+        upper_lims = franka_dof_props["upper"]
+        self.dof_pos[:, 0 : self.franka_num_dofs] = (
+            torch.tensor((lower_lims + upper_lims) * 0.5, device=self.device)
+            + (torch.rand((self.num_envs, 1), device=self.device) * 2.0 - 1.0)
+            * self.cfg_task.randomize.joint_noise
+            * math.pi
+            / 180
+        )
 
-        self.dof_vel[env_ids, 0:self.franka_num_dofs] = 0.0
+        self.dof_vel[env_ids, 0 : self.franka_num_dofs] = 0.0
 
-        franka_actor_ids_sim_int32 = self.franka_actor_ids_sim.to(dtype=torch.int32, device=self.device)[env_ids]
-        self.gym.set_dof_state_tensor_indexed(self.sim,
-                                              gymtorch.unwrap_tensor(self.dof_state),
-                                              gymtorch.unwrap_tensor(franka_actor_ids_sim_int32),
-                                              len(franka_actor_ids_sim_int32))
+        franka_actor_ids_sim_int32 = self.franka_actor_ids_sim.to(
+            dtype=torch.int32, device=self.device
+        )[env_ids]
+        self.gym.set_dof_state_tensor_indexed(
+            self.sim,
+            gymtorch.unwrap_tensor(self.dof_state),
+            gymtorch.unwrap_tensor(franka_actor_ids_sim_int32),
+            len(franka_actor_ids_sim_int32),
+        )
 
-        self.ctrl_target_dof_pos[env_ids, 0:self.franka_num_dofs] = self.dof_pos[env_ids, 0:self.franka_num_dofs]
-        self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(self.ctrl_target_dof_pos))
+        self.ctrl_target_dof_pos[env_ids, 0 : self.franka_num_dofs] = self.dof_pos[
+            env_ids, 0 : self.franka_num_dofs
+        ]
+        self.gym.set_dof_position_target_tensor(
+            self.sim, gymtorch.unwrap_tensor(self.ctrl_target_dof_pos)
+        )
 
     def _reset_object(self, env_ids):
         """Reset root state of gears."""
@@ -166,28 +206,62 @@ class FactoryTaskGears(FactoryEnvGears, FactoryABCTask):
         # shape of root_linvel = (num_envs, num_actors, 3)
         # shape of root_angvel = (num_envs, num_actors, 3)
 
-        if self.cfg_task.randomize.initial_state == 'random':
-            self.root_pos[env_ids, self.gear_small_actor_id_env] = \
-                torch.cat(((torch.rand((self.num_envs, 1), device=self.device) * 2.0 - 1.0) * self.cfg_task.randomize.gears_noise_xy,
-                           - self.cfg_task.randomize.gears_bias_y + (torch.rand((self.num_envs, 1), device=self.device) * 2.0 - 1.0) * self.cfg_task.randomize.gears_noise_xy,
-                           torch.ones((self.num_envs, 1), device=self.device) * (self.cfg_base.env.table_height + self.cfg_task.randomize.gears_bias_z)
-                           ), dim=1)
-            self.root_pos[env_ids, self.gear_medium_actor_id_env] = \
-                torch.cat(((torch.rand((self.num_envs, 1), device=self.device) * 2.0 - 1.0) * self.cfg_task.randomize.gears_noise_xy,
-                           self.cfg_task.randomize.gears_bias_y + (torch.rand((self.num_envs, 1), device=self.device) * 2.0 - 1.0) * self.cfg_task.randomize.gears_noise_xy,
-                           torch.ones((self.num_envs, 1), device=self.device) * (self.cfg_base.env.table_height + self.cfg_task.randomize.gears_bias_z)
-                           ), dim=1)
-            self.root_pos[env_ids, self.gear_large_actor_id_env] = \
-                torch.cat(((torch.rand((self.num_envs, 1), device=self.device) * 2.0 - 1.0) * self.cfg_task.randomize.gears_noise_xy,
-                           - self.cfg_task.randomize.gears_bias_y + (torch.rand((self.num_envs, 1), device=self.device) * 2.0 - 1.0) * self.cfg_task.randomize.gears_noise_xy,
-                           torch.ones((self.num_envs, 1), device=self.device) * (self.cfg_base.env.table_height + self.cfg_task.randomize.gears_bias_z)), dim=1)
-        elif self.cfg_task.randomize.initial_state == 'goal':
+        if self.cfg_task.randomize.initial_state == "random":
+            self.root_pos[env_ids, self.gear_small_actor_id_env] = torch.cat(
+                (
+                    (torch.rand((self.num_envs, 1), device=self.device) * 2.0 - 1.0)
+                    * self.cfg_task.randomize.gears_noise_xy,
+                    -self.cfg_task.randomize.gears_bias_y
+                    + (torch.rand((self.num_envs, 1), device=self.device) * 2.0 - 1.0)
+                    * self.cfg_task.randomize.gears_noise_xy,
+                    torch.ones((self.num_envs, 1), device=self.device)
+                    * (
+                        self.cfg_base.env.table_height
+                        + self.cfg_task.randomize.gears_bias_z
+                    ),
+                ),
+                dim=1,
+            )
+            self.root_pos[env_ids, self.gear_medium_actor_id_env] = torch.cat(
+                (
+                    (torch.rand((self.num_envs, 1), device=self.device) * 2.0 - 1.0)
+                    * self.cfg_task.randomize.gears_noise_xy,
+                    self.cfg_task.randomize.gears_bias_y
+                    + (torch.rand((self.num_envs, 1), device=self.device) * 2.0 - 1.0)
+                    * self.cfg_task.randomize.gears_noise_xy,
+                    torch.ones((self.num_envs, 1), device=self.device)
+                    * (
+                        self.cfg_base.env.table_height
+                        + self.cfg_task.randomize.gears_bias_z
+                    ),
+                ),
+                dim=1,
+            )
+            self.root_pos[env_ids, self.gear_large_actor_id_env] = torch.cat(
+                (
+                    (torch.rand((self.num_envs, 1), device=self.device) * 2.0 - 1.0)
+                    * self.cfg_task.randomize.gears_noise_xy,
+                    -self.cfg_task.randomize.gears_bias_y
+                    + (torch.rand((self.num_envs, 1), device=self.device) * 2.0 - 1.0)
+                    * self.cfg_task.randomize.gears_noise_xy,
+                    torch.ones((self.num_envs, 1), device=self.device)
+                    * (
+                        self.cfg_base.env.table_height
+                        + self.cfg_task.randomize.gears_bias_z
+                    ),
+                ),
+                dim=1,
+            )
+        elif self.cfg_task.randomize.initial_state == "goal":
             self.root_pos[env_ids, self.gear_small_actor_id_env] = torch.tensor(
-                [0.0, 0.0, self.cfg_base.env.table_height], device=self.device)
+                [0.0, 0.0, self.cfg_base.env.table_height], device=self.device
+            )
             self.root_pos[env_ids, self.gear_medium_actor_id_env] = torch.tensor(
-                [0.0, 0.0, self.cfg_base.env.table_height], device=self.device)
+                [0.0, 0.0, self.cfg_base.env.table_height], device=self.device
+            )
             self.root_pos[env_ids, self.gear_large_actor_id_env] = torch.tensor(
-                [0.0, 0.0, self.cfg_base.env.table_height], device=self.device)
+                [0.0, 0.0, self.cfg_base.env.table_height], device=self.device
+            )
 
         self.root_linvel[env_ids, self.gear_small_actor_id_env] = 0.0
         self.root_angvel[env_ids, self.gear_small_actor_id_env] = 0.0
@@ -196,24 +270,34 @@ class FactoryTaskGears(FactoryEnvGears, FactoryABCTask):
         self.root_linvel[env_ids, self.gear_large_actor_id_env] = 0.0
         self.root_angvel[env_ids, self.gear_large_actor_id_env] = 0.0
 
-        gear_small_actor_ids_sim_int32 = self.gear_small_actor_ids_sim.to(dtype=torch.int32, device=self.device)
-        gear_medium_actor_ids_sim_int32 = self.gear_medium_actor_ids_sim.to(dtype=torch.int32, device=self.device)
-        gear_large_actor_ids_sim_int32 = self.gear_large_actor_ids_sim.to(dtype=torch.int32, device=self.device)
-        gears_actor_ids_sim_int32 = torch.cat((gear_small_actor_ids_sim_int32[env_ids],
-                                               gear_medium_actor_ids_sim_int32[env_ids],
-                                               gear_large_actor_ids_sim_int32[env_ids]))
+        gear_small_actor_ids_sim_int32 = self.gear_small_actor_ids_sim.to(
+            dtype=torch.int32, device=self.device
+        )
+        gear_medium_actor_ids_sim_int32 = self.gear_medium_actor_ids_sim.to(
+            dtype=torch.int32, device=self.device
+        )
+        gear_large_actor_ids_sim_int32 = self.gear_large_actor_ids_sim.to(
+            dtype=torch.int32, device=self.device
+        )
+        gears_actor_ids_sim_int32 = torch.cat(
+            (
+                gear_small_actor_ids_sim_int32[env_ids],
+                gear_medium_actor_ids_sim_int32[env_ids],
+                gear_large_actor_ids_sim_int32[env_ids],
+            )
+        )
 
-        self.gym.set_actor_root_state_tensor_indexed(self.sim,
-                                                     gymtorch.unwrap_tensor(self.root_state),
-                                                     gymtorch.unwrap_tensor(gears_actor_ids_sim_int32),
-                                                     len(gear_small_actor_ids_sim_int32[env_ids]) +
-                                                     len(gear_medium_actor_ids_sim_int32[env_ids]) +
-                                                     len(gear_large_actor_ids_sim_int32[env_ids])
-                                                     )
-
+        self.gym.set_actor_root_state_tensor_indexed(
+            self.sim,
+            gymtorch.unwrap_tensor(self.root_state),
+            gymtorch.unwrap_tensor(gears_actor_ids_sim_int32),
+            len(gear_small_actor_ids_sim_int32[env_ids])
+            + len(gear_medium_actor_ids_sim_int32[env_ids])
+            + len(gear_large_actor_ids_sim_int32[env_ids]),
+        )
 
     def _reset_buffers(self, env_ids):
-        """Reset buffers. """
+        """Reset buffers."""
 
         self.reset_buf[env_ids] = 0
         self.progress_buf[env_ids] = 0

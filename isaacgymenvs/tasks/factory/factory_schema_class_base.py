@@ -34,7 +34,6 @@ from abc import ABC, abstractmethod
 
 
 class FactoryABCBase(ABC):
-
     @abstractmethod
     def __init__(self):
         """Initialize instance variables. Initialize VecTask superclass."""

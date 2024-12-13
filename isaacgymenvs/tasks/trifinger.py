@@ -32,10 +32,10 @@ import torch
 
 from isaacgym import gymtorch
 from isaacgym import gymapi
-from isaacgymenvs.utils.torch_jit_utils import quat_mul 
+from isaacgymenvs.utils.torch_jit_utils import quat_mul
 from collections import OrderedDict
 
-project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 from isaacgymenvs.utils.torch_jit_utils import *
 from isaacgymenvs.tasks.base.vec_task import VecTask
@@ -61,9 +61,10 @@ class TrifingerDimensions(enum.Enum):
     Note: While it may not seem necessary for tri-finger robot since it is fixed base, for floating
     base systems having this dimensions class is useful.
     """
+
     # general state
     # cartesian position + quaternion orientation
-    PoseDim = 7,
+    PoseDim = (7,)
     # linear velocity + angular velcoity
     VelocityDim = 6
     # state: pose + velocity
@@ -84,6 +85,7 @@ class TrifingerDimensions(enum.Enum):
     ObjectPoseDim = 7
     ObjectVelocityDim = 6
 
+
 # ################# #
 # Different objects #
 # ################# #
@@ -100,6 +102,7 @@ class CuboidalObject:
     @note Motivation for this class is that if domain randomization is performed over the
           size of the cuboid, then its attributes are automatically updated as well.
     """
+
     # 3D radius of the cuboid
     radius_3d: float
     # distance from wall to the center
@@ -144,7 +147,7 @@ class CuboidalObject:
 
     @size.setter
     def size(self, size: Union[float, Tuple[float, float, float]]):
-        """ Set size of the object.
+        """Set size of the object.
 
         Args:
             size: The size of the object along x, y, z in meters. If a single float is provided, then it is assumed
@@ -163,8 +166,7 @@ class CuboidalObject:
     """
 
     def __compute(self):
-        """Compute the attributes for the object.
-        """
+        """Compute the attributes for the object."""
         # compute 3D radius of the cuboid
         max_len = max(self._size)
         self.radius_3d = max_len * np.sqrt(3) / 2
@@ -225,7 +227,9 @@ class Trifinger(VecTask):
     _dof_torque: torch.Tensor
     # Fingertip links state list([num. of instances, num. of fingers, 13]) where 13: (x, y, z, quat, v, omega)
     # The length of list is the history of the state: 0: t, 1: t-1, 2: t-2, ... step.
-    _fingertips_frames_state_history: Deque[torch.Tensor] = deque(maxlen=_state_history_len)
+    _fingertips_frames_state_history: Deque[torch.Tensor] = deque(
+        maxlen=_state_history_len
+    )
     # Object prim state [num. of instances, 13] where 13: (x, y, z, quat, v, omega)
     # The length of list is the history of the state: 0: t, 1: t-1, 2: t-2, ... step.
     _object_state_history: Deque[torch.Tensor] = deque(maxlen=_state_history_len)
@@ -241,11 +245,17 @@ class Trifinger(VecTask):
             # matches those on the real robot
             low=np.array([-0.33, 0.0, -2.7] * _dims.NumFingers.value, dtype=np.float32),
             high=np.array([1.0, 1.57, 0.0] * _dims.NumFingers.value, dtype=np.float32),
-            default=np.array([0.0, 0.9, -2.0] * _dims.NumFingers.value, dtype=np.float32),
+            default=np.array(
+                [0.0, 0.9, -2.0] * _dims.NumFingers.value, dtype=np.float32
+            ),
         ),
         "joint_velocity": SimpleNamespace(
-            low=np.full(_dims.JointVelocityDim.value, -_max_velocity_radps, dtype=np.float32),
-            high=np.full(_dims.JointVelocityDim.value, _max_velocity_radps, dtype=np.float32),
+            low=np.full(
+                _dims.JointVelocityDim.value, -_max_velocity_radps, dtype=np.float32
+            ),
+            high=np.full(
+                _dims.JointVelocityDim.value, _max_velocity_radps, dtype=np.float32
+            ),
             default=np.zeros(_dims.JointVelocityDim.value, dtype=np.float32),
         ),
         "joint_torque": SimpleNamespace(
@@ -272,10 +282,14 @@ class Trifinger(VecTask):
         # used if we want to have joint stiffness/damping as parameters`
         "joint_stiffness": SimpleNamespace(
             low=np.array([1.0, 1.0, 1.0] * _dims.NumFingers.value, dtype=np.float32),
-            high=np.array([50.0, 50.0, 50.0] * _dims.NumFingers.value, dtype=np.float32),
+            high=np.array(
+                [50.0, 50.0, 50.0] * _dims.NumFingers.value, dtype=np.float32
+            ),
         ),
         "joint_damping": SimpleNamespace(
-            low=np.array([0.01, 0.03, 0.0001] * _dims.NumFingers.value, dtype=np.float32),
+            low=np.array(
+                [0.01, 0.03, 0.0001] * _dims.NumFingers.value, dtype=np.float32
+            ),
             high=np.array([1.0, 3.0, 0.01] * _dims.NumFingers.value, dtype=np.float32),
         ),
     }
@@ -284,13 +298,13 @@ class Trifinger(VecTask):
         "position": SimpleNamespace(
             low=np.array([-0.3, -0.3, 0], dtype=np.float32),
             high=np.array([0.3, 0.3, 0.3], dtype=np.float32),
-            default=np.array([0, 0, _object_dims.min_height], dtype=np.float32)
+            default=np.array([0, 0, _object_dims.min_height], dtype=np.float32),
         ),
         # difference between two positions
         "position_delta": SimpleNamespace(
             low=np.array([-0.6, -0.6, 0], dtype=np.float32),
             high=np.array([0.6, 0.6, 0.3], dtype=np.float32),
-            default=np.array([0, 0, 0], dtype=np.float32)
+            default=np.array([0, 0, 0], dtype=np.float32),
         ),
         "orientation": SimpleNamespace(
             low=-np.ones(4, dtype=np.float32),
@@ -300,7 +314,7 @@ class Trifinger(VecTask):
         "velocity": SimpleNamespace(
             low=np.full(_dims.VelocityDim.value, -0.5, dtype=np.float32),
             high=np.full(_dims.VelocityDim.value, 0.5, dtype=np.float32),
-            default=np.zeros(_dims.VelocityDim.value, dtype=np.float32)
+            default=np.zeros(_dims.VelocityDim.value, dtype=np.float32),
         ),
         "scale": SimpleNamespace(
             low=np.full(1, 0.0, dtype=np.float32),
@@ -316,11 +330,20 @@ class Trifinger(VecTask):
         "damping": [0.1, 0.3, 0.001] * _dims.NumFingers.value,
         # The kd gains used for damping the joint motor velocities during the
         # safety torque check on the joint motors.
-        "safety_damping": [0.08, 0.08, 0.04] * _dims.NumFingers.value
+        "safety_damping": [0.08, 0.08, 0.04] * _dims.NumFingers.value,
     }
     action_dim = _dims.JointTorqueDim.value
 
-    def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
+    def __init__(
+        self,
+        cfg,
+        rl_device,
+        sim_device,
+        graphics_device_id,
+        headless,
+        virtual_screen_capture,
+        force_render,
+    ):
         self.cfg = cfg
 
         self.obs_spec = {
@@ -328,7 +351,7 @@ class Trifinger(VecTask):
             "robot_u": self._dims.GeneralizedVelocityDim.value,
             "object_q": self._dims.ObjectPoseDim.value,
             "object_q_des": self._dims.ObjectPoseDim.value,
-            "command": self.action_dim
+            "command": self.action_dim,
         }
         if self.cfg["env"]["asymmetric_obs"]:
             self.state_spec = {
@@ -336,16 +359,16 @@ class Trifinger(VecTask):
                 **self.obs_spec,
                 # extra observations (added separately to make computations simpler)
                 "object_u": self._dims.ObjectVelocityDim.value,
-                "fingertip_state": self._dims.NumFingers.value * self._dims.StateDim.value,
+                "fingertip_state": self._dims.NumFingers.value
+                * self._dims.StateDim.value,
                 "robot_a": self._dims.GeneralizedVelocityDim.value,
-                "fingertip_wrench": self._dims.NumFingers.value * self._dims.WrenchDim.value,
+                "fingertip_wrench": self._dims.NumFingers.value
+                * self._dims.WrenchDim.value,
             }
         else:
             self.state_spec = self.obs_spec
 
-        self.action_spec = {
-            "command":  self.action_dim
-        }
+        self.action_spec = {"command": self.action_dim}
 
         self.cfg["env"]["numObservations"] = sum(self.obs_spec.values())
         self.cfg["env"]["numStates"] = sum(self.state_spec.values())
@@ -353,7 +376,6 @@ class Trifinger(VecTask):
         self.max_episode_length = self.cfg["env"]["episodeLength"]
         self.randomize = self.cfg["task"]["randomize"]
         self.randomization_params = self.cfg["task"]["randomization_params"]
-
 
         # define prims present in the scene
         prim_names = ["robot", "table", "boundary", "object", "goal_object"]
@@ -363,23 +385,36 @@ class Trifinger(VecTask):
         self.gym_indices = dict.fromkeys(prim_names)
         # mapping from name to gym rigid body handles
         # name of finger tips links i.e. end-effector frames
-        fingertips_frames = ["finger_tip_link_0", "finger_tip_link_120", "finger_tip_link_240"]
+        fingertips_frames = [
+            "finger_tip_link_0",
+            "finger_tip_link_120",
+            "finger_tip_link_240",
+        ]
         self._fingertips_handles = OrderedDict.fromkeys(fingertips_frames, None)
         # mapping from name to gym dof index
         robot_dof_names = list()
-        for finger_pos in ['0', '120', '240']:
-            robot_dof_names += [f'finger_base_to_upper_joint_{finger_pos}',
-                                f'finger_upper_to_middle_joint_{finger_pos}',
-                                f'finger_middle_to_lower_joint_{finger_pos}']
+        for finger_pos in ["0", "120", "240"]:
+            robot_dof_names += [
+                f"finger_base_to_upper_joint_{finger_pos}",
+                f"finger_upper_to_middle_joint_{finger_pos}",
+                f"finger_middle_to_lower_joint_{finger_pos}",
+            ]
         self._robot_dof_indices = OrderedDict.fromkeys(robot_dof_names, None)
 
-        super().__init__(config=self.cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, virtual_screen_capture=virtual_screen_capture, force_render=force_render)
+        super().__init__(
+            config=self.cfg,
+            rl_device=rl_device,
+            sim_device=sim_device,
+            graphics_device_id=graphics_device_id,
+            headless=headless,
+            virtual_screen_capture=virtual_screen_capture,
+            force_render=force_render,
+        )
 
         if self.viewer != None:
             cam_pos = gymapi.Vec3(0.7, 0.0, 0.7)
             cam_target = gymapi.Vec3(0.0, 0.0, 0.0)
             self.gym.viewer_camera_look_at(self.viewer, None, cam_pos, cam_target)
-
 
         # change constant buffers from numpy/lists into torch tensors
         # limits for robot
@@ -388,20 +423,28 @@ class Trifinger(VecTask):
             limit_dict = self._robot_limits[limit_name].__dict__
             # iterate over namespace attributes
             for prop, value in limit_dict.items():
-                limit_dict[prop] = torch.tensor(value, dtype=torch.float, device=self.device)
+                limit_dict[prop] = torch.tensor(
+                    value, dtype=torch.float, device=self.device
+                )
         # limits for the object
         for limit_name in self._object_limits:
             # extract limit simple-namespace
             limit_dict = self._object_limits[limit_name].__dict__
             # iterate over namespace attributes
             for prop, value in limit_dict.items():
-                limit_dict[prop] = torch.tensor(value, dtype=torch.float, device=self.device)
+                limit_dict[prop] = torch.tensor(
+                    value, dtype=torch.float, device=self.device
+                )
         # PD gains for actuation
         for gain_name, value in self._robot_dof_gains.items():
-            self._robot_dof_gains[gain_name] = torch.tensor(value, dtype=torch.float, device=self.device)
+            self._robot_dof_gains[gain_name] = torch.tensor(
+                value, dtype=torch.float, device=self.device
+            )
 
         # store the sampled goal poses for the object: [num. of instances, 7]
-        self._object_goal_poses_buf = torch.zeros((self.num_envs, 7), device=self.device, dtype=torch.float)
+        self._object_goal_poses_buf = torch.zeros(
+            (self.num_envs, 7), device=self.device, dtype=torch.float
+        )
         # get force torque sensor if enabled
         if self.cfg["env"]["enable_ft_sensors"] or self.cfg["env"]["asymmetric_obs"]:
             # # joint torques
@@ -414,10 +457,14 @@ class Trifinger(VecTask):
             # self._ft_sensors_values = gymtorch.wrap_tensor(sensor_tensor).view(self.num_envs, num_ft_dims)
 
             sensor_tensor = self.gym.acquire_force_sensor_tensor(self.sim)
-            self._ft_sensors_values = gymtorch.wrap_tensor(sensor_tensor).view(self.num_envs, num_ft_dims)
+            self._ft_sensors_values = gymtorch.wrap_tensor(sensor_tensor).view(
+                self.num_envs, num_ft_dims
+            )
 
             dof_force_tensor = self.gym.acquire_dof_force_tensor(self.sim)
-            self._dof_torque = gymtorch.wrap_tensor(dof_force_tensor).view(self.num_envs, self._dims.JointTorqueDim.value)
+            self._dof_torque = gymtorch.wrap_tensor(dof_force_tensor).view(
+                self.num_envs, self._dims.JointTorqueDim.value
+            )
 
         # get gym GPU state tensors
         actor_root_state_tensor = self.gym.acquire_actor_root_state_tensor(self.sim)
@@ -429,16 +476,24 @@ class Trifinger(VecTask):
         self.gym.refresh_rigid_body_state_tensor(self.sim)
         # create wrapper tensors for reference (consider everything as pointer to actual memory)
         # DOF
-        self._dof_state = gymtorch.wrap_tensor(dof_state_tensor).view(self.num_envs, -1, 2)
+        self._dof_state = gymtorch.wrap_tensor(dof_state_tensor).view(
+            self.num_envs, -1, 2
+        )
         self._dof_position = self._dof_state[..., 0]
         self._dof_velocity = self._dof_state[..., 1]
         # rigid body
-        self._rigid_body_state = gymtorch.wrap_tensor(rigid_body_tensor).view(self.num_envs, -1, 13)
+        self._rigid_body_state = gymtorch.wrap_tensor(rigid_body_tensor).view(
+            self.num_envs, -1, 13
+        )
         # root actors
-        self._actors_root_state = gymtorch.wrap_tensor(actor_root_state_tensor).view(-1, 13)
+        self._actors_root_state = gymtorch.wrap_tensor(actor_root_state_tensor).view(
+            -1, 13
+        )
         # frames history
         action_dim = sum(self.action_spec.values())
-        self._last_action = torch.zeros(self.num_envs, action_dim, dtype=torch.float, device=self.device)
+        self._last_action = torch.zeros(
+            self.num_envs, action_dim, dtype=torch.float, device=self.device
+        )
         fingertip_handles_indices = list(self._fingertips_handles.values())
         object_indices = self.gym_indices["object"]
         # timestep 0 is current tensor
@@ -446,7 +501,9 @@ class Trifinger(VecTask):
         while curr_history_length < self._state_history_len:
             # add tensors to history list
             print(self._rigid_body_state.shape)
-            self._fingertips_frames_state_history.append(self._rigid_body_state[:, fingertip_handles_indices])
+            self._fingertips_frames_state_history.append(
+                self._rigid_body_state[:, fingertip_handles_indices]
+            )
             self._object_state_history.append(self._actors_root_state[object_indices])
             # update current history length
             curr_history_length += 1
@@ -455,20 +512,32 @@ class Trifinger(VecTask):
         self._states_scale = SimpleNamespace(low=None, high=None)
         self._action_scale = SimpleNamespace(low=None, high=None)
 
-        self._successes = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
-        self._successes_pos = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
-        self._successes_quat = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
-
+        self._successes = torch.zeros(
+            self.num_envs, device=self.device, dtype=torch.long
+        )
+        self._successes_pos = torch.zeros(
+            self.num_envs, device=self.device, dtype=torch.long
+        )
+        self._successes_quat = torch.zeros(
+            self.num_envs, device=self.device, dtype=torch.long
+        )
 
         self.__configure_mdp_spaces()
 
     def create_sim(self):
-        self.up_axis_idx = 2 # index of up axis: Y=1, Z=2
-        self.sim = super().create_sim(self.device_id, self.graphics_device_id, self.physics_engine, self.sim_params)
+        self.up_axis_idx = 2  # index of up axis: Y=1, Z=2
+        self.sim = super().create_sim(
+            self.device_id,
+            self.graphics_device_id,
+            self.physics_engine,
+            self.sim_params,
+        )
 
         self._create_ground_plane()
         self._create_scene_assets()
-        self._create_envs(self.num_envs, self.cfg["env"]["envSpacing"], int(np.sqrt(self.num_envs)))
+        self._create_envs(
+            self.num_envs, self.cfg["env"]["envSpacing"], int(np.sqrt(self.num_envs))
+        )
 
         # If randomizing, apply once immediately on startup before the fist sim step
         if self.randomize:
@@ -483,8 +552,7 @@ class Trifinger(VecTask):
         self.gym.add_ground(self.sim, plane_params)
 
     def _create_scene_assets(self):
-        """ Define Gym assets for stage, robot and object.
-        """
+        """Define Gym assets for stage, robot and object."""
         # define assets
         self.gym_assets["robot"] = self.__define_robot_asset()
         self.gym_assets["table"] = self.__define_table_asset()
@@ -494,17 +562,31 @@ class Trifinger(VecTask):
         # display the properties (only for debugging)
         # robot
         print("Trifinger Robot Asset: ")
-        print(f'\t Number of bodies: {self.gym.get_asset_rigid_body_count(self.gym_assets["robot"])}')
-        print(f'\t Number of shapes: {self.gym.get_asset_rigid_shape_count(self.gym_assets["robot"])}')
-        print(f'\t Number of dofs: {self.gym.get_asset_dof_count(self.gym_assets["robot"])}')
-        print(f'\t Number of actuated dofs: {self._dims.JointTorqueDim.value}')
+        print(
+            f'\t Number of bodies: {self.gym.get_asset_rigid_body_count(self.gym_assets["robot"])}'
+        )
+        print(
+            f'\t Number of shapes: {self.gym.get_asset_rigid_shape_count(self.gym_assets["robot"])}'
+        )
+        print(
+            f'\t Number of dofs: {self.gym.get_asset_dof_count(self.gym_assets["robot"])}'
+        )
+        print(f"\t Number of actuated dofs: {self._dims.JointTorqueDim.value}")
         # stage
         print("Trifinger Table Asset: ")
-        print(f'\t Number of bodies: {self.gym.get_asset_rigid_body_count(self.gym_assets["table"])}')
-        print(f'\t Number of shapes: {self.gym.get_asset_rigid_shape_count(self.gym_assets["table"])}')
+        print(
+            f'\t Number of bodies: {self.gym.get_asset_rigid_body_count(self.gym_assets["table"])}'
+        )
+        print(
+            f'\t Number of shapes: {self.gym.get_asset_rigid_shape_count(self.gym_assets["table"])}'
+        )
         print("Trifinger Boundary Asset: ")
-        print(f'\t Number of bodies: {self.gym.get_asset_rigid_body_count(self.gym_assets["boundary"])}')
-        print(f'\t Number of shapes: {self.gym.get_asset_rigid_shape_count(self.gym_assets["boundary"])}')
+        print(
+            f'\t Number of bodies: {self.gym.get_asset_rigid_body_count(self.gym_assets["boundary"])}'
+        )
+        print(
+            f'\t Number of shapes: {self.gym.get_asset_rigid_shape_count(self.gym_assets["boundary"])}'
+        )
 
     def _create_envs(self, num_envs, spacing, num_per_row):
         # define the dof properties for the robot
@@ -514,20 +596,30 @@ class Trifinger(VecTask):
             # note: since safety checks are employed, the simulator PD controller is not
             #       used. Instead the torque is computed manually and applied, even if the
             #       command mode is 'position'.
-            robot_dof_props['driveMode'][dof_index] = gymapi.DOF_MODE_EFFORT
-            robot_dof_props['stiffness'][dof_index] = 0.0
-            robot_dof_props['damping'][dof_index] = 0.0
+            robot_dof_props["driveMode"][dof_index] = gymapi.DOF_MODE_EFFORT
+            robot_dof_props["stiffness"][dof_index] = 0.0
+            robot_dof_props["damping"][dof_index] = 0.0
             # set dof limits
-            robot_dof_props['effort'][dof_index] = self._max_torque_Nm
-            robot_dof_props['velocity'][dof_index] = self._max_velocity_radps
-            robot_dof_props['lower'][dof_index] = float(self._robot_limits["joint_position"].low[k])
-            robot_dof_props['upper'][dof_index] = float(self._robot_limits["joint_position"].high[k])
+            robot_dof_props["effort"][dof_index] = self._max_torque_Nm
+            robot_dof_props["velocity"][dof_index] = self._max_velocity_radps
+            robot_dof_props["lower"][dof_index] = float(
+                self._robot_limits["joint_position"].low[k]
+            )
+            robot_dof_props["upper"][dof_index] = float(
+                self._robot_limits["joint_position"].high[k]
+            )
 
         self.envs = []
 
         # define lower and upper region bound for each environment
-        env_lower_bound = gymapi.Vec3(-self.cfg["env"]["envSpacing"], -self.cfg["env"]["envSpacing"], 0.0)
-        env_upper_bound = gymapi.Vec3(self.cfg["env"]["envSpacing"], self.cfg["env"]["envSpacing"], self.cfg["env"]["envSpacing"])
+        env_lower_bound = gymapi.Vec3(
+            -self.cfg["env"]["envSpacing"], -self.cfg["env"]["envSpacing"], 0.0
+        )
+        env_upper_bound = gymapi.Vec3(
+            self.cfg["env"]["envSpacing"],
+            self.cfg["env"]["envSpacing"],
+            self.cfg["env"]["envSpacing"],
+        )
         num_envs_per_row = int(np.sqrt(self.num_envs))
         # initialize gym indices buffer as a list
         # note: later the list is converted to torch tensor for ease in interfacing with IsaacGym.
@@ -542,39 +634,94 @@ class Trifinger(VecTask):
         # iterate and create environment instances
         for env_index in range(self.num_envs):
             # create environment
-            env_ptr = self.gym.create_env(self.sim, env_lower_bound, env_upper_bound, num_envs_per_row)
+            env_ptr = self.gym.create_env(
+                self.sim, env_lower_bound, env_upper_bound, num_envs_per_row
+            )
             # begin aggregration mode if enabled - this can improve simulation performance
             if self.cfg["env"]["aggregate_mode"]:
                 self.gym.begin_aggregate(env_ptr, max_agg_bodies, max_agg_shapes, True)
             # add trifinger robot to environment
-            trifinger_actor = self.gym.create_actor(env_ptr, self.gym_assets["robot"], gymapi.Transform(),
-                                                     "robot", env_index, 0, 0)
-            trifinger_idx = self.gym.get_actor_index(env_ptr, trifinger_actor, gymapi.DOMAIN_SIM)
+            trifinger_actor = self.gym.create_actor(
+                env_ptr,
+                self.gym_assets["robot"],
+                gymapi.Transform(),
+                "robot",
+                env_index,
+                0,
+                0,
+            )
+            trifinger_idx = self.gym.get_actor_index(
+                env_ptr, trifinger_actor, gymapi.DOMAIN_SIM
+            )
 
             # add table to environment
-            table_handle = self.gym.create_actor(env_ptr, self.gym_assets["table"], gymapi.Transform(),
-                                                  "table", env_index, 1, 0)
-            table_idx = self.gym.get_actor_index(env_ptr, table_handle, gymapi.DOMAIN_SIM)
+            table_handle = self.gym.create_actor(
+                env_ptr,
+                self.gym_assets["table"],
+                gymapi.Transform(),
+                "table",
+                env_index,
+                1,
+                0,
+            )
+            table_idx = self.gym.get_actor_index(
+                env_ptr, table_handle, gymapi.DOMAIN_SIM
+            )
 
             # add stage to environment
-            boundary_handle = self.gym.create_actor(env_ptr, self.gym_assets["boundary"], gymapi.Transform(),
-                                                     "boundary", env_index, 1, 0)
-            boundary_idx = self.gym.get_actor_index(env_ptr, boundary_handle, gymapi.DOMAIN_SIM)
+            boundary_handle = self.gym.create_actor(
+                env_ptr,
+                self.gym_assets["boundary"],
+                gymapi.Transform(),
+                "boundary",
+                env_index,
+                1,
+                0,
+            )
+            boundary_idx = self.gym.get_actor_index(
+                env_ptr, boundary_handle, gymapi.DOMAIN_SIM
+            )
 
             # add object to environment
-            object_handle = self.gym.create_actor(env_ptr, self.gym_assets["object"], gymapi.Transform(),
-                                                   "object", env_index, 0, 0)
-            object_idx = self.gym.get_actor_index(env_ptr, object_handle, gymapi.DOMAIN_SIM)
+            object_handle = self.gym.create_actor(
+                env_ptr,
+                self.gym_assets["object"],
+                gymapi.Transform(),
+                "object",
+                env_index,
+                0,
+                0,
+            )
+            object_idx = self.gym.get_actor_index(
+                env_ptr, object_handle, gymapi.DOMAIN_SIM
+            )
             # add goal object to environment
-            goal_handle = self.gym.create_actor(env_ptr, self.gym_assets["goal_object"], gymapi.Transform(),
-                                                 "goal_object", env_index + self.num_envs, 0, 0)
-            goal_object_idx = self.gym.get_actor_index(env_ptr, goal_handle, gymapi.DOMAIN_SIM)
+            goal_handle = self.gym.create_actor(
+                env_ptr,
+                self.gym_assets["goal_object"],
+                gymapi.Transform(),
+                "goal_object",
+                env_index + self.num_envs,
+                0,
+                0,
+            )
+            goal_object_idx = self.gym.get_actor_index(
+                env_ptr, goal_handle, gymapi.DOMAIN_SIM
+            )
             # change settings of DOF
             self.gym.set_actor_dof_properties(env_ptr, trifinger_actor, robot_dof_props)
             # add color to instances
             stage_color = gymapi.Vec3(0.73, 0.68, 0.72)
-            self.gym.set_rigid_body_color(env_ptr, table_handle, 0, gymapi.MESH_VISUAL_AND_COLLISION, stage_color)
-            self.gym.set_rigid_body_color(env_ptr, boundary_handle, 0, gymapi.MESH_VISUAL_AND_COLLISION, stage_color)
+            self.gym.set_rigid_body_color(
+                env_ptr, table_handle, 0, gymapi.MESH_VISUAL_AND_COLLISION, stage_color
+            )
+            self.gym.set_rigid_body_color(
+                env_ptr,
+                boundary_handle,
+                0,
+                gymapi.MESH_VISUAL_AND_COLLISION,
+                stage_color,
+            )
             # end aggregation mode if enabled
             if self.cfg["env"]["aggregate_mode"]:
                 self.gym.end_aggregate(env_ptr)
@@ -587,7 +734,9 @@ class Trifinger(VecTask):
             self.gym_indices["goal_object"].append(goal_object_idx)
         # convert gym indices from list to tensor
         for asset_name, asset_indices in self.gym_indices.items():
-            self.gym_indices[asset_name] = torch.tensor(asset_indices, dtype=torch.long, device=self.device)
+            self.gym_indices[asset_name] = torch.tensor(
+                asset_indices, dtype=torch.long, device=self.device
+            )
 
     def __configure_mdp_spaces(self):
         """
@@ -611,62 +760,84 @@ class Trifinger(VecTask):
         # check if policy outputs normalized action [-1, 1] or not.
         if self.cfg["env"]["normalize_action"]:
             obs_action_scale = SimpleNamespace(
-                low=torch.full((self.action_dim,), -1, dtype=torch.float, device=self.device),
-                high=torch.full((self.action_dim,), 1, dtype=torch.float, device=self.device)
+                low=torch.full(
+                    (self.action_dim,), -1, dtype=torch.float, device=self.device
+                ),
+                high=torch.full(
+                    (self.action_dim,), 1, dtype=torch.float, device=self.device
+                ),
             )
         else:
             obs_action_scale = self._action_scale
 
-        object_obs_low = torch.cat([
-                                       self._object_limits["position"].low,
-                                       self._object_limits["orientation"].low,
-                                   ]*2)
-        object_obs_high = torch.cat([
-                                        self._object_limits["position"].high,
-                                        self._object_limits["orientation"].high,
-                                    ]*2)
+        object_obs_low = torch.cat(
+            [
+                self._object_limits["position"].low,
+                self._object_limits["orientation"].low,
+            ]
+            * 2
+        )
+        object_obs_high = torch.cat(
+            [
+                self._object_limits["position"].high,
+                self._object_limits["orientation"].high,
+            ]
+            * 2
+        )
 
         # Note: This is order sensitive.
-        self._observations_scale.low = torch.cat([
-            self._robot_limits["joint_position"].low,
-            self._robot_limits["joint_velocity"].low,
-            object_obs_low,
-            obs_action_scale.low
-        ])
-        self._observations_scale.high = torch.cat([
-            self._robot_limits["joint_position"].high,
-            self._robot_limits["joint_velocity"].high,
-            object_obs_high,
-            obs_action_scale.high
-        ])
+        self._observations_scale.low = torch.cat(
+            [
+                self._robot_limits["joint_position"].low,
+                self._robot_limits["joint_velocity"].low,
+                object_obs_low,
+                obs_action_scale.low,
+            ]
+        )
+        self._observations_scale.high = torch.cat(
+            [
+                self._robot_limits["joint_position"].high,
+                self._robot_limits["joint_velocity"].high,
+                object_obs_high,
+                obs_action_scale.high,
+            ]
+        )
         # State scale for the MDP
         if self.cfg["env"]["asymmetric_obs"]:
             # finger tip scaling
             fingertip_state_scale = SimpleNamespace(
-                low=torch.cat([
-                    self._robot_limits["fingertip_position"].low,
-                    self._robot_limits["fingertip_orientation"].low,
-                    self._robot_limits["fingertip_velocity"].low,
-                ]),
-                high=torch.cat([
-                    self._robot_limits["fingertip_position"].high,
-                    self._robot_limits["fingertip_orientation"].high,
-                    self._robot_limits["fingertip_velocity"].high,
-                ])
+                low=torch.cat(
+                    [
+                        self._robot_limits["fingertip_position"].low,
+                        self._robot_limits["fingertip_orientation"].low,
+                        self._robot_limits["fingertip_velocity"].low,
+                    ]
+                ),
+                high=torch.cat(
+                    [
+                        self._robot_limits["fingertip_position"].high,
+                        self._robot_limits["fingertip_orientation"].high,
+                        self._robot_limits["fingertip_velocity"].high,
+                    ]
+                ),
             )
             states_low = [
                 self._observations_scale.low,
                 self._object_limits["velocity"].low,
                 fingertip_state_scale.low.repeat(self._dims.NumFingers.value),
                 self._robot_limits["joint_torque"].low,
-                self._robot_limits["fingertip_wrench"].low.repeat(self._dims.NumFingers.value),
+                self._robot_limits["fingertip_wrench"].low.repeat(
+                    self._dims.NumFingers.value
+                ),
             ]
             states_high = [
                 self._observations_scale.high,
                 self._object_limits["velocity"].high,
                 fingertip_state_scale.high.repeat(self._dims.NumFingers.value),
                 self._robot_limits["joint_torque"].high,
-                self._robot_limits["fingertip_wrench"].high.repeat(self._dims.NumFingers.value),
+                self._robot_limits["fingertip_wrench"].high.repeat(
+                    self._dims.NumFingers.value
+                ),
             ]
             # Note: This is order sensitive.
             self._states_scale.low = torch.cat(states_low)
@@ -678,41 +849,61 @@ class Trifinger(VecTask):
         action_dim = sum(self.action_spec.values())
         # check that dimensions match
         # observations
-        if self._observations_scale.low.shape[0] != obs_dim or self._observations_scale.high.shape[0] != obs_dim:
-            msg = f"Observation scaling dimensions mismatch. " \
-                  f"\tLow: {self._observations_scale.low.shape[0]}, " \
-                  f"\tHigh: {self._observations_scale.high.shape[0]}, " \
-                  f"\tExpected: {obs_dim}."
+        if (
+            self._observations_scale.low.shape[0] != obs_dim
+            or self._observations_scale.high.shape[0] != obs_dim
+        ):
+            msg = (
+                f"Observation scaling dimensions mismatch. "
+                f"\tLow: {self._observations_scale.low.shape[0]}, "
+                f"\tHigh: {self._observations_scale.high.shape[0]}, "
+                f"\tExpected: {obs_dim}."
+            )
             raise AssertionError(msg)
         # state
-        if self.cfg["env"]["asymmetric_obs"] \
-                and (self._states_scale.low.shape[0] != state_dim or self._states_scale.high.shape[0] != state_dim):
-            msg = f"States scaling dimensions mismatch. " \
-                  f"\tLow: {self._states_scale.low.shape[0]}, " \
-                  f"\tHigh: {self._states_scale.high.shape[0]}, " \
-                  f"\tExpected: {state_dim}."
+        if self.cfg["env"]["asymmetric_obs"] and (
+            self._states_scale.low.shape[0] != state_dim
+            or self._states_scale.high.shape[0] != state_dim
+        ):
+            msg = (
+                f"States scaling dimensions mismatch. "
+                f"\tLow: {self._states_scale.low.shape[0]}, "
+                f"\tHigh: {self._states_scale.high.shape[0]}, "
+                f"\tExpected: {state_dim}."
+            )
             raise AssertionError(msg)
         # actions
-        if self._action_scale.low.shape[0] != action_dim or self._action_scale.high.shape[0] != action_dim:
-            msg = f"Actions scaling dimensions mismatch. " \
-                  f"\tLow: {self._action_scale.low.shape[0]}, " \
-                  f"\tHigh: {self._action_scale.high.shape[0]}, " \
-                  f"\tExpected: {action_dim}."
+        if (
+            self._action_scale.low.shape[0] != action_dim
+            or self._action_scale.high.shape[0] != action_dim
+        ):
+            msg = (
+                f"Actions scaling dimensions mismatch. "
+                f"\tLow: {self._action_scale.low.shape[0]}, "
+                f"\tHigh: {self._action_scale.high.shape[0]}, "
+                f"\tExpected: {action_dim}."
+            )
             raise AssertionError(msg)
         # print the scaling
-        print(f'MDP Raw observation bounds\n'
-                   f'\tLow: {self._observations_scale.low}\n'
-                   f'\tHigh: {self._observations_scale.high}')
-        print(f'MDP Raw state bounds\n'
-                   f'\tLow: {self._states_scale.low}\n'
-                   f'\tHigh: {self._states_scale.high}')
-        print(f'MDP Raw action bounds\n'
-                   f'\tLow: {self._action_scale.low}\n'
-                   f'\tHigh: {self._action_scale.high}')
+        print(
+            f"MDP Raw observation bounds\n"
+            f"\tLow: {self._observations_scale.low}\n"
+            f"\tHigh: {self._observations_scale.high}"
+        )
+        print(
+            f"MDP Raw state bounds\n"
+            f"\tLow: {self._states_scale.low}\n"
+            f"\tHigh: {self._states_scale.high}"
+        )
+        print(
+            f"MDP Raw action bounds\n"
+            f"\tLow: {self._action_scale.low}\n"
+            f"\tHigh: {self._action_scale.high}"
+        )
 
     def compute_reward(self, actions):
-        self.rew_buf[:] = 0.
-        self.reset_buf[:] = 0.
+        self.rew_buf[:] = 0.0
+        self.reset_buf[:] = 0.0
 
         self.rew_buf[:], self.reset_buf[:], log_dict = compute_trifinger_reward(
             self.obs_buf,
@@ -730,10 +921,10 @@ class Trifinger(VecTask):
             self._object_state_history[1],
             self._fingertips_frames_state_history[0],
             self._fingertips_frames_state_history[1],
-            self.cfg["env"]["reward_terms"]["keypoints_dist"]["activate"]
+            self.cfg["env"]["reward_terms"]["keypoints_dist"]["activate"],
         )
 
-        self.extras.update({"env/rewards/"+k: v.mean() for k, v in log_dict.items()})
+        self.extras.update({"env/rewards/" + k: v.mean() for k, v in log_dict.items()})
 
     def compute_observations(self):
         # refresh memory buffers
@@ -748,14 +939,26 @@ class Trifinger(VecTask):
             tip_wrenches = self._ft_sensors_values
 
         else:
-            joint_torques = torch.zeros(self.num_envs, self._dims.JointTorqueDim.value, dtype=torch.float32, device=self.device)
-            tip_wrenches = torch.zeros(self.num_envs, self._dims.NumFingers.value * self._dims.WrenchDim.value, dtype=torch.float32, device=self.device)
+            joint_torques = torch.zeros(
+                self.num_envs,
+                self._dims.JointTorqueDim.value,
+                dtype=torch.float32,
+                device=self.device,
+            )
+            tip_wrenches = torch.zeros(
+                self.num_envs,
+                self._dims.NumFingers.value * self._dims.WrenchDim.value,
+                dtype=torch.float32,
+                device=self.device,
+            )
 
         # extract frame handles
         fingertip_handles_indices = list(self._fingertips_handles.values())
         object_indices = self.gym_indices["object"]
         # update state histories
-        self._fingertips_frames_state_history.appendleft(self._rigid_body_state[:, fingertip_handles_indices])
+        self._fingertips_frames_state_history.appendleft(
+            self._rigid_body_state[:, fingertip_handles_indices]
+        )
         self._object_state_history.appendleft(self._actors_root_state[object_indices])
         # fill the observations and states buffer
 
@@ -777,7 +980,7 @@ class Trifinger(VecTask):
             self.obs_buf = scale_transform(
                 self.obs_buf,
                 lower=self._observations_scale.low,
-                upper=self._observations_scale.high
+                upper=self._observations_scale.high,
             )
 
     def reset_idx(self, env_ids):
@@ -799,39 +1002,57 @@ class Trifinger(VecTask):
         # -- Mass and size of the object
         # -- Mass of robot links
         # -- Robot joint state
-        robot_initial_state_config = self.cfg["env"]["reset_distribution"]["robot_initial_state"]
+        robot_initial_state_config = self.cfg["env"]["reset_distribution"][
+            "robot_initial_state"
+        ]
         self._sample_robot_state(
             env_ids,
             distribution=robot_initial_state_config["type"],
             dof_pos_stddev=robot_initial_state_config["dof_pos_stddev"],
-            dof_vel_stddev=robot_initial_state_config["dof_vel_stddev"]
+            dof_vel_stddev=robot_initial_state_config["dof_vel_stddev"],
         )
         # -- Sampling of initial pose of the object
-        object_initial_state_config = self.cfg["env"]["reset_distribution"]["object_initial_state"]
+        object_initial_state_config = self.cfg["env"]["reset_distribution"][
+            "object_initial_state"
+        ]
         self._sample_object_poses(
             env_ids,
             distribution=object_initial_state_config["type"],
         )
         # -- Sampling of goal pose of the object
         self._sample_object_goal_poses(
-            env_ids,
-            difficulty=self.cfg["env"]["task_difficulty"]
+            env_ids, difficulty=self.cfg["env"]["task_difficulty"]
         )
         # C) Extract trifinger indices to reset
         robot_indices = self.gym_indices["robot"][env_ids].to(torch.int32)
         object_indices = self.gym_indices["object"][env_ids].to(torch.int32)
         goal_object_indices = self.gym_indices["goal_object"][env_ids].to(torch.int32)
-        all_indices = torch.unique(torch.cat([robot_indices, object_indices, goal_object_indices]))
+        all_indices = torch.unique(
+            torch.cat([robot_indices, object_indices, goal_object_indices])
+        )
         # D) Set values into simulator
         # -- DOF
-        self.gym.set_dof_state_tensor_indexed(self.sim, gymtorch.unwrap_tensor(self._dof_state),
-                                               gymtorch.unwrap_tensor(robot_indices), len(robot_indices))
+        self.gym.set_dof_state_tensor_indexed(
+            self.sim,
+            gymtorch.unwrap_tensor(self._dof_state),
+            gymtorch.unwrap_tensor(robot_indices),
+            len(robot_indices),
+        )
         # -- actor root states
-        self.gym.set_actor_root_state_tensor_indexed(self.sim, gymtorch.unwrap_tensor(self._actors_root_state),
-                                                      gymtorch.unwrap_tensor(all_indices), len(all_indices))
+        self.gym.set_actor_root_state_tensor_indexed(
+            self.sim,
+            gymtorch.unwrap_tensor(self._actors_root_state),
+            gymtorch.unwrap_tensor(all_indices),
+            len(all_indices),
+        )
 
-    def _sample_robot_state(self, instances: torch.Tensor, distribution: str = 'default',
-                             dof_pos_stddev: float = 0.0, dof_vel_stddev: float = 0.0):
+    def _sample_robot_state(
+        self,
+        instances: torch.Tensor,
+        distribution: str = "default",
+        dof_pos_stddev: float = 0.0,
+        dof_vel_stddev: float = 0.0,
+    ):
         """Samples the robot DOF state based on the settings.
 
         Type of robot initial state distribution: ["default", "random"]
@@ -856,9 +1077,21 @@ class Trifinger(VecTask):
             self._dof_velocity[instances] = self._robot_limits["joint_velocity"].default
         elif distribution == "random":
             # sample uniform random from (-1, 1)
-            dof_state_dim = self._dims.JointPositionDim.value + self._dims.JointVelocityDim.value
-            dof_state_noise = 2 * torch.rand((num_samples, dof_state_dim,), dtype=torch.float,
-                                             device=self.device) - 1
+            dof_state_dim = (
+                self._dims.JointPositionDim.value + self._dims.JointVelocityDim.value
+            )
+            dof_state_noise = (
+                2
+                * torch.rand(
+                    (
+                        num_samples,
+                        dof_state_dim,
+                    ),
+                    dtype=torch.float,
+                    device=self.device,
+                )
+                - 1
+            )
             # set to default configuration
             self._dof_position[instances] = self._robot_limits["joint_position"].default
             self._dof_velocity[instances] = self._robot_limits["joint_velocity"].default
@@ -866,11 +1099,15 @@ class Trifinger(VecTask):
             # DOF position
             start_offset = 0
             end_offset = self._dims.JointPositionDim.value
-            self._dof_position[instances] += dof_pos_stddev * dof_state_noise[:, start_offset:end_offset]
+            self._dof_position[instances] += (
+                dof_pos_stddev * dof_state_noise[:, start_offset:end_offset]
+            )
             # DOF velocity
             start_offset = end_offset
             end_offset += self._dims.JointVelocityDim.value
-            self._dof_velocity[instances] += dof_vel_stddev * dof_state_noise[:, start_offset:end_offset]
+            self._dof_velocity[instances] += (
+                dof_vel_stddev * dof_state_noise[:, start_offset:end_offset]
+            )
         else:
             msg = f"Invalid robot initial state distribution. Input: {distribution} not in [`default`, `random`]."
             raise ValueError(msg)
@@ -900,13 +1137,17 @@ class Trifinger(VecTask):
             orientation = self._object_limits["orientation"].default
         elif distribution == "random":
             # For initialization
-            pos_x, pos_y = random_xy(num_samples, self._object_dims.max_com_distance_to_center, self.device)
+            pos_x, pos_y = random_xy(
+                num_samples, self._object_dims.max_com_distance_to_center, self.device
+            )
             # add a small offset to the height to account for scale randomisation (prevent ground intersection)
             pos_z = self._object_dims.size[2] / 2 + 0.0015
             orientation = random_yaw_orientation(num_samples, self.device)
         else:
-            msg = f"Invalid object initial state distribution. Input: {distribution} " \
-                  "not in [`default`, `random`, `none`]."
+            msg = (
+                f"Invalid object initial state distribution. Input: {distribution} "
+                "not in [`default`, `random`, `none`]."
+            )
             raise ValueError(msg)
         # set buffers into simulator
         # extract indices for goal object
@@ -922,7 +1163,9 @@ class Trifinger(VecTask):
         for idx in range(1, self._state_history_len):
             self._object_state_history[idx][instances] = 0.0
         # root actor buffer
-        self._actors_root_state[object_indices] = self._object_state_history[0][instances]
+        self._actors_root_state[object_indices] = self._object_state_history[0][
+            instances
+        ]
 
     def _sample_object_goal_poses(self, instances: torch.Tensor, difficulty: int):
         """Sample goal poses for the cube and sets them into the desired goal pose buffer.
@@ -943,12 +1186,16 @@ class Trifinger(VecTask):
         # sample poses based on task difficulty
         if difficulty == -1:
             # For initialization
-            pos_x, pos_y = random_xy(num_samples, self._object_dims.max_com_distance_to_center, self.device)
+            pos_x, pos_y = random_xy(
+                num_samples, self._object_dims.max_com_distance_to_center, self.device
+            )
             pos_z = self._object_dims.size[2] / 2
             orientation = random_yaw_orientation(num_samples, self.device)
         elif difficulty == 1:
             # Random goal position on the table, no orientation.
-            pos_x, pos_y = random_xy(num_samples, self._object_dims.max_com_distance_to_center, self.device)
+            pos_x, pos_y = random_xy(
+                num_samples, self._object_dims.max_com_distance_to_center, self.device
+            )
             pos_z = self._object_dims.size[2] / 2
             orientation = default_orientation(num_samples, self.device)
         elif difficulty == 2:
@@ -958,8 +1205,15 @@ class Trifinger(VecTask):
             orientation = default_orientation(num_samples, self.device)
         elif difficulty == 3:
             # Random goal position in the air, no orientation.
-            pos_x, pos_y = random_xy(num_samples, self._object_dims.max_com_distance_to_center, self.device)
-            pos_z = random_z(num_samples, self._object_dims.min_height, self._object_dims.max_height, self.device)
+            pos_x, pos_y = random_xy(
+                num_samples, self._object_dims.max_com_distance_to_center, self.device
+            )
+            pos_z = random_z(
+                num_samples,
+                self._object_dims.min_height,
+                self._object_dims.max_height,
+                self.device,
+            )
             orientation = default_orientation(num_samples, self.device)
         elif difficulty == 4:
             # Random goal pose in the air, including orientation.
@@ -972,7 +1226,9 @@ class Trifinger(VecTask):
             # pick x, y, z according to the maximum height / radius at the current point
             # in the cirriculum
             pos_x, pos_y = random_xy(num_samples, max_goal_radius, self.device)
-            pos_z = random_z(num_samples, self._object_dims.radius_3d, max_height, self.device)
+            pos_z = random_z(
+                num_samples, self._object_dims.radius_3d, max_height, self.device
+            )
         else:
             msg = f"Invalid difficulty index for task: {difficulty}."
             raise ValueError(msg)
@@ -986,7 +1242,9 @@ class Trifinger(VecTask):
         self._object_goal_poses_buf[instances, 2] = pos_z
         self._object_goal_poses_buf[instances, 3:7] = orientation
         # root actor buffer
-        self._actors_root_state[goal_object_indices, 0:7] = self._object_goal_poses_buf[instances]
+        self._actors_root_state[goal_object_indices, 0:7] = self._object_goal_poses_buf[
+            instances
+        ]
         # self._actors_root_state[goal_object_indices, 2] = -10
 
     def pre_physics_step(self, actions):
@@ -1005,20 +1263,22 @@ class Trifinger(VecTask):
             action_transformed = unscale_transform(
                 self.actions,
                 lower=self._action_scale.low,
-                upper=self._action_scale.high
+                upper=self._action_scale.high,
             )
         else:
             action_transformed = self.actions
 
         # compute command on the basis of mode selected
-        if self.cfg["env"]["command_mode"] == 'torque':
+        if self.cfg["env"]["command_mode"] == "torque":
             # command is the desired joint torque
             computed_torque = action_transformed
-        elif self.cfg["env"]["command_mode"] == 'position':
+        elif self.cfg["env"]["command_mode"] == "position":
             # command is the desired joint positions
             desired_dof_position = action_transformed
             # compute torque to apply
-            computed_torque = self._robot_dof_gains["stiffness"] * (desired_dof_position - self._dof_position)
+            computed_torque = self._robot_dof_gains["stiffness"] * (
+                desired_dof_position - self._dof_position
+            )
             computed_torque -= self._robot_dof_gains["damping"] * self._dof_velocity
         else:
             msg = f"Invalid command mode. Input: {self.cfg['env']['command_mode']} not in ['torque', 'position']."
@@ -1027,20 +1287,24 @@ class Trifinger(VecTask):
         applied_torque = saturate(
             computed_torque,
             lower=self._robot_limits["joint_torque"].low,
-            upper=self._robot_limits["joint_torque"].high
+            upper=self._robot_limits["joint_torque"].high,
         )
         # apply safety damping and clamping of the action torque if enabled
         if self.cfg["env"]["apply_safety_damping"]:
             # apply damping by joint velocity
-            applied_torque -= self._robot_dof_gains["safety_damping"] * self._dof_velocity
+            applied_torque -= (
+                self._robot_dof_gains["safety_damping"] * self._dof_velocity
+            )
             # clamp input
             applied_torque = saturate(
                 applied_torque,
                 lower=self._robot_limits["joint_torque"].low,
-                upper=self._robot_limits["joint_torque"].high
+                upper=self._robot_limits["joint_torque"].high,
             )
         # set computed torques to simulator buffer.
-        self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(applied_torque))
+        self.gym.set_dof_actuation_force_tensor(
+            self.sim, gymtorch.unwrap_tensor(applied_torque)
+        )
 
     def post_physics_step(self):
 
@@ -1056,40 +1320,57 @@ class Trifinger(VecTask):
         self._check_termination()
 
         if torch.sum(self.reset_buf) > 0:
-            self._step_info['consecutive_successes'] = np.mean(self._successes.float().cpu().numpy())
-            self._step_info['consecutive_successes_pos'] = np.mean(self._successes_pos.float().cpu().numpy())
-            self._step_info['consecutive_successes_quat'] = np.mean(self._successes_quat.float().cpu().numpy())
+            self._step_info["consecutive_successes"] = np.mean(
+                self._successes.float().cpu().numpy()
+            )
+            self._step_info["consecutive_successes_pos"] = np.mean(
+                self._successes_pos.float().cpu().numpy()
+            )
+            self._step_info["consecutive_successes_quat"] = np.mean(
+                self._successes_quat.float().cpu().numpy()
+            )
 
     def _check_termination(self):
-        """Check whether the episode is done per environment.
-        """
+        """Check whether the episode is done per environment."""
         # Extract configuration for termination conditions
         termination_config = self.cfg["env"]["termination_conditions"]
         # Termination condition - successful completion
         # Calculate distance between current object and goal
         object_goal_position_dist = torch.norm(
             self._object_goal_poses_buf[:, 0:3] - self._object_state_history[0][:, 0:3],
-            p=2, dim=-1
+            p=2,
+            dim=-1,
         )
         # log theoretical number of r eseats
-        goal_position_reset = torch.le(object_goal_position_dist,
-                                       termination_config["success"]["position_tolerance"])
-        self._step_info['env/current_position_goal/per_env'] = np.mean(goal_position_reset.float().cpu().numpy())
+        goal_position_reset = torch.le(
+            object_goal_position_dist,
+            termination_config["success"]["position_tolerance"],
+        )
+        self._step_info["env/current_position_goal/per_env"] = np.mean(
+            goal_position_reset.float().cpu().numpy()
+        )
         # For task with difficulty 4, we need to check if orientation matches as well.
         # Compute the difference in orientation between object and goal pose
-        object_goal_orientation_dist = quat_diff_rad(self._object_state_history[0][:, 3:7],
-                                                     self._object_goal_poses_buf[:, 3:7])
+        object_goal_orientation_dist = quat_diff_rad(
+            self._object_state_history[0][:, 3:7], self._object_goal_poses_buf[:, 3:7]
+        )
         # Check for distance within tolerance
-        goal_orientation_reset = torch.le(object_goal_orientation_dist,
-                                          termination_config["success"]["orientation_tolerance"])
-        self._step_info['env/current_orientation_goal/per_env'] =  np.mean(goal_orientation_reset.float().cpu().numpy())
+        goal_orientation_reset = torch.le(
+            object_goal_orientation_dist,
+            termination_config["success"]["orientation_tolerance"],
+        )
+        self._step_info["env/current_orientation_goal/per_env"] = np.mean(
+            goal_orientation_reset.float().cpu().numpy()
+        )
 
-        if self.cfg["env"]['task_difficulty'] < 4:
+        if self.cfg["env"]["task_difficulty"] < 4:
             # Check for task completion if position goal is within a threshold
             task_completion_reset = goal_position_reset
-        elif self.cfg["env"]['task_difficulty'] == 4:
+        elif self.cfg["env"]["task_difficulty"] == 4:
             # Check for task completion if both position + orientation goal is within a threshold
-            task_completion_reset = torch.logical_and(goal_position_reset, goal_orientation_reset)
+            task_completion_reset = torch.logical_and(
+                goal_position_reset, goal_orientation_reset
+            )
         else:
             # Check for task completion if both orientation goal is within a threshold
             task_completion_reset = goal_orientation_reset
@@ -1098,14 +1379,12 @@ class Trifinger(VecTask):
         self._successes_pos = goal_position_reset
         self._successes_quat = goal_orientation_reset
 
-
     """
     Helper functions - define assets
     """
 
     def __define_robot_asset(self):
-        """ Define Gym asset for robot.
-        """
+        """Define Gym asset for robot."""
         # define tri-finger asset
         robot_asset_options = gymapi.AssetOptions()
         robot_asset_options.flip_visual_attachments = False
@@ -1128,8 +1407,12 @@ class Trifinger(VecTask):
         if self.physics_engine == gymapi.SIM_PHYSX:
             robot_asset_options.use_physx_armature = True
         # load tri-finger asset
-        trifinger_asset = self.gym.load_asset(self.sim, self._trifinger_assets_dir,
-                                               self._robot_urdf_file, robot_asset_options)
+        trifinger_asset = self.gym.load_asset(
+            self.sim,
+            self._trifinger_assets_dir,
+            self._robot_urdf_file,
+            robot_asset_options,
+        )
         # set the link properties for the robot
         # Ref: https://github.com/rr-learning/rrc_simulation/blob/master/python/rrc_simulation/sim_finger.py#L563
         trifinger_props = self.gym.get_asset_rigid_shape_properties(trifinger_asset)
@@ -1140,8 +1423,9 @@ class Trifinger(VecTask):
         self.gym.set_asset_rigid_shape_properties(trifinger_asset, trifinger_props)
         # extract the frame handles
         for frame_name in self._fingertips_handles.keys():
-            self._fingertips_handles[frame_name] = self.gym.find_asset_rigid_body_index(trifinger_asset,
-                                                                                         frame_name)
+            self._fingertips_handles[frame_name] = self.gym.find_asset_rigid_body_index(
+                trifinger_asset, frame_name
+            )
             # check valid handle
             if self._fingertips_handles[frame_name] == gymapi.INVALID_HANDLE:
                 msg = f"Invalid handle received for frame: `{frame_name}`."
@@ -1150,11 +1434,15 @@ class Trifinger(VecTask):
         if self.cfg["env"]["enable_ft_sensors"] or self.cfg["env"]["asymmetric_obs"]:
             sensor_pose = gymapi.Transform()
             for fingertip_handle in self._fingertips_handles.values():
-                self.gym.create_asset_force_sensor(trifinger_asset, fingertip_handle, sensor_pose)
+                self.gym.create_asset_force_sensor(
+                    trifinger_asset, fingertip_handle, sensor_pose
+                )
         # extract the dof indices
         # Note: need to write actuated dofs manually since the system contains fixed joints as well which show up.
         for dof_name in self._robot_dof_indices.keys():
-            self._robot_dof_indices[dof_name] = self.gym.find_asset_dof_index(trifinger_asset, dof_name)
+            self._robot_dof_indices[dof_name] = self.gym.find_asset_dof_index(
+                trifinger_asset, dof_name
+            )
             # check valid handle
             if self._robot_dof_indices[dof_name] == gymapi.INVALID_HANDLE:
                 msg = f"Invalid index received for DOF: `{dof_name}`."
@@ -1163,8 +1451,7 @@ class Trifinger(VecTask):
         return trifinger_asset
 
     def __define_table_asset(self):
-        """ Define Gym asset for stage.
-        """
+        """Define Gym asset for stage."""
         # define stage asset
         table_asset_options = gymapi.AssetOptions()
         table_asset_options.disable_gravity = True
@@ -1172,8 +1459,12 @@ class Trifinger(VecTask):
         table_asset_options.thickness = 0.001
 
         # load stage asset
-        table_asset = self.gym.load_asset(self.sim, self._trifinger_assets_dir,
-                                           self._table_urdf_file, table_asset_options)
+        table_asset = self.gym.load_asset(
+            self.sim,
+            self._trifinger_assets_dir,
+            self._table_urdf_file,
+            table_asset_options,
+        )
         # set stage properties
         table_props = self.gym.get_asset_rigid_shape_properties(table_asset)
         # iterate over each mesh
@@ -1185,8 +1476,7 @@ class Trifinger(VecTask):
         return table_asset
 
     def __define_boundary_asset(self):
-        """ Define Gym asset for stage.
-        """
+        """Define Gym asset for stage."""
         # define stage asset
         boundary_asset_options = gymapi.AssetOptions()
         boundary_asset_options.disable_gravity = True
@@ -1202,8 +1492,12 @@ class Trifinger(VecTask):
         boundary_asset_options.vhacd_params.max_num_vertices_per_ch = 1024
 
         # load stage asset
-        boundary_asset = self.gym.load_asset(self.sim, self._trifinger_assets_dir,
-                                              self._boundary_urdf_file, boundary_asset_options)
+        boundary_asset = self.gym.load_asset(
+            self.sim,
+            self._trifinger_assets_dir,
+            self._boundary_urdf_file,
+            boundary_asset_options,
+        )
         # set stage properties
         boundary_props = self.gym.get_asset_rigid_shape_properties(boundary_asset)
 
@@ -1212,16 +1506,19 @@ class Trifinger(VecTask):
         return boundary_asset
 
     def __define_object_asset(self):
-        """ Define Gym asset for object.
-        """
+        """Define Gym asset for object."""
         # define object asset
         object_asset_options = gymapi.AssetOptions()
         object_asset_options.disable_gravity = False
         object_asset_options.thickness = 0.001
         object_asset_options.flip_visual_attachments = True
         # load object asset
-        object_asset = self.gym.load_asset(self.sim, self._trifinger_assets_dir,
-                                            self._object_urdf_file, object_asset_options)
+        object_asset = self.gym.load_asset(
+            self.sim,
+            self._trifinger_assets_dir,
+            self._object_urdf_file,
+            object_asset_options,
+        )
         # set object properties
         # Ref: https://github.com/rr-learning/rrc_simulation/blob/master/python/rrc_simulation/collision_objects.py#L96
         object_props = self.gym.get_asset_rigid_shape_properties(object_asset)
@@ -1234,8 +1531,7 @@ class Trifinger(VecTask):
         return object_asset
 
     def __define_goal_object_asset(self):
-        """ Define Gym asset for goal object.
-        """
+        """Define Gym asset for goal object."""
         # define object asset
         object_asset_options = gymapi.AssetOptions()
         object_asset_options.disable_gravity = True
@@ -1243,8 +1539,12 @@ class Trifinger(VecTask):
         object_asset_options.thickness = 0.001
         object_asset_options.flip_visual_attachments = True
         # load object asset
-        goal_object_asset = self.gym.load_asset(self.sim, self._trifinger_assets_dir,
-                                                 self._object_urdf_file, object_asset_options)
+        goal_object_asset = self.gym.load_asset(
+            self.sim,
+            self._trifinger_assets_dir,
+            self._object_urdf_file,
+            object_asset_options,
+        )
         # return the asset
         return goal_object_asset
 
@@ -1253,12 +1553,14 @@ class Trifinger(VecTask):
         """Returns the total number of environment steps aggregated across parallel environments."""
         return self.gym.get_frame_count(self.sim) * self.num_envs
 
+
 #####################################################################
 ###=========================jit functions=========================###
 #####################################################################
 
+
 @torch.jit.script
-def lgsk_kernel(x: torch.Tensor, scale: float = 50.0, eps:float=2) -> torch.Tensor:
+def lgsk_kernel(x: torch.Tensor, scale: float = 50.0, eps: float = 2) -> torch.Tensor:
     """Defines logistic kernel function to bound input to [-0.25, 0)
 
     Ref: https://arxiv.org/abs/1901.08652 (page 15)
@@ -1274,39 +1576,50 @@ def lgsk_kernel(x: torch.Tensor, scale: float = 50.0, eps:float=2) -> torch.Tens
     scaled = x * scale
     return 1.0 / (scaled.exp() + eps + (-scaled).exp())
 
+
 @torch.jit.script
-def gen_keypoints(pose: torch.Tensor, num_keypoints: int = 8, size: Tuple[float, float, float] = (0.065, 0.065, 0.065)):
+def gen_keypoints(
+    pose: torch.Tensor,
+    num_keypoints: int = 8,
+    size: Tuple[float, float, float] = (0.065, 0.065, 0.065),
+):
 
     num_envs = pose.shape[0]
 
-    keypoints_buf = torch.ones(num_envs, num_keypoints, 3, dtype=torch.float32, device=pose.device)
+    keypoints_buf = torch.ones(
+        num_envs, num_keypoints, 3, dtype=torch.float32, device=pose.device
+    )
 
     for i in range(num_keypoints):
         # which dimensions to negate
         n = [((i >> k) & 1) == 0 for k in range(3)]
-        corner_loc = [(1 if n[k] else -1) * s / 2 for k, s in enumerate(size)],
-        corner = torch.tensor(corner_loc, dtype=torch.float32, device=pose.device) * keypoints_buf[:, i, :]
+        corner_loc = ([(1 if n[k] else -1) * s / 2 for k, s in enumerate(size)],)
+        corner = (
+            torch.tensor(corner_loc, dtype=torch.float32, device=pose.device)
+            * keypoints_buf[:, i, :]
+        )
         keypoints_buf[:, i, :] = local_to_world_space(corner, pose)
     return keypoints_buf
 
+
 @torch.jit.script
 def compute_trifinger_reward(
-        obs_buf: torch.Tensor,
-        reset_buf: torch.Tensor,
-        progress_buf: torch.Tensor,
-        episode_length: int,
-        dt: float,
-        finger_move_penalty_weight: float,
-        finger_reach_object_weight: float,
-        object_dist_weight: float,
-        object_rot_weight: float,
-        env_steps_count: int,
-        object_goal_poses_buf: torch.Tensor,
-        object_state: torch.Tensor,
-        last_object_state: torch.Tensor,
-        fingertip_state: torch.Tensor,
-        last_fingertip_state: torch.Tensor,
-        use_keypoints: bool
+    obs_buf: torch.Tensor,
+    reset_buf: torch.Tensor,
+    progress_buf: torch.Tensor,
+    episode_length: int,
+    dt: float,
+    finger_move_penalty_weight: float,
+    finger_reach_object_weight: float,
+    object_dist_weight: float,
+    object_rot_weight: float,
+    env_steps_count: int,
+    object_goal_poses_buf: torch.Tensor,
+    object_state: torch.Tensor,
+    last_object_state: torch.Tensor,
+    fingertip_state: torch.Tensor,
+    last_fingertip_state: torch.Tensor,
+    use_keypoints: bool,
 ) -> Tuple[torch.Tensor, torch.Tensor, Dict[str, torch.Tensor]]:
 
     ft_sched_start = 0
@@ -1316,23 +1629,37 @@ def compute_trifinger_reward(
 
     fingertip_vel = (fingertip_state[:, :, 0:3] - last_fingertip_state[:, :, 0:3]) / dt
 
-    finger_movement_penalty = finger_move_penalty_weight * fingertip_vel.pow(2).view(-1, 9).sum(dim=-1)
+    finger_movement_penalty = finger_move_penalty_weight * fingertip_vel.pow(2).view(
+        -1, 9
+    ).sum(dim=-1)
 
     # Reward for finger reaching the object
 
     # distance from each finger to the centroid of the object, shape (N, 3).
-    curr_norms = torch.stack([
-        torch.norm(fingertip_state[:, i, 0:3] - object_state[:, 0:3], p=2, dim=-1)
-        for i in range(3)
-    ], dim=-1)
+    curr_norms = torch.stack(
+        [
+            torch.norm(fingertip_state[:, i, 0:3] - object_state[:, 0:3], p=2, dim=-1)
+            for i in range(3)
+        ],
+        dim=-1,
+    )
     # distance from each finger to the centroid of the object in the last timestep, shape (N, 3).
-    prev_norms = torch.stack([
-        torch.norm(last_fingertip_state[:, i, 0:3] - last_object_state[:, 0:3], p=2, dim=-1)
-        for i in range(3)
-    ], dim=-1)
+    prev_norms = torch.stack(
+        [
+            torch.norm(
+                last_fingertip_state[:, i, 0:3] - last_object_state[:, 0:3], p=2, dim=-1
+            )
+            for i in range(3)
+        ],
+        dim=-1,
+    )
 
     ft_sched_val = 1.0 if ft_sched_start <= env_steps_count <= ft_sched_end else 0.0
-    finger_reach_object_reward = finger_reach_object_weight * ft_sched_val * (curr_norms - prev_norms).sum(dim=-1)
+    finger_reach_object_reward = (
+        finger_reach_object_weight
+        * ft_sched_val
+        * (curr_norms - prev_norms).sum(dim=-1)
+    )
 
     if use_keypoints:
         object_keypoints = gen_keypoints(object_state[:, 0:7])
@@ -1342,15 +1669,19 @@ def compute_trifinger_reward(
 
         dist_l2 = torch.norm(delta, p=2, dim=-1)
 
-        keypoints_kernel_sum = lgsk_kernel(dist_l2, scale=30., eps=2.).mean(dim=-1)
+        keypoints_kernel_sum = lgsk_kernel(dist_l2, scale=30.0, eps=2.0).mean(dim=-1)
 
         pose_reward = object_dist_weight * dt * keypoints_kernel_sum
 
     else:
 
         # Reward for object distance
-        object_dist = torch.norm(object_state[:, 0:3] - object_goal_poses_buf[:, 0:3], p=2, dim=-1)
-        object_dist_reward = object_dist_weight * dt * lgsk_kernel(object_dist, scale=50., eps=2.)
+        object_dist = torch.norm(
+            object_state[:, 0:3] - object_goal_poses_buf[:, 0:3], p=2, dim=-1
+        )
+        object_dist_reward = (
+            object_dist_weight * dt * lgsk_kernel(object_dist, scale=50.0, eps=2.0)
+        )
 
         # Reward for object rotation
 
@@ -1359,25 +1690,23 @@ def compute_trifinger_reward(
         quat_b = object_goal_poses_buf[:, 3:7]
 
         angles = quat_diff_rad(quat_a, quat_b)
-        object_rot_reward =  object_rot_weight * dt / (3. * torch.abs(angles) + 0.01)
+        object_rot_reward = object_rot_weight * dt / (3.0 * torch.abs(angles) + 0.01)
 
         pose_reward = object_dist_reward + object_rot_reward
 
-    total_reward = (
-            finger_movement_penalty
-            + finger_reach_object_reward
-            + pose_reward
-    )
+    total_reward = finger_movement_penalty + finger_reach_object_reward + pose_reward
 
     # reset agents
     reset = torch.zeros_like(reset_buf)
-    reset = torch.where(progress_buf >= episode_length - 1, torch.ones_like(reset_buf), reset)
+    reset = torch.where(
+        progress_buf >= episode_length - 1, torch.ones_like(reset_buf), reset
+    )
 
     info: Dict[str, torch.Tensor] = {
-        'finger_movement_penalty': finger_movement_penalty,
-        'finger_reach_object_reward': finger_reach_object_reward,
-        'pose_reward': finger_reach_object_reward,
-        'reward': total_reward,
+        "finger_movement_penalty": finger_movement_penalty,
+        "finger_reach_object_reward": finger_reach_object_reward,
+        "pose_reward": finger_reach_object_reward,
+        "reward": total_reward,
     }
 
     return total_reward, reset, info
@@ -1385,39 +1714,46 @@ def compute_trifinger_reward(
 
 @torch.jit.script
 def compute_trifinger_observations_states(
-        asymmetric_obs: bool,
-        dof_position: torch.Tensor,
-        dof_velocity: torch.Tensor,
-        object_state: torch.Tensor,
-        object_goal_poses: torch.Tensor,
-        actions: torch.Tensor,
-        fingertip_state: torch.Tensor,
-        joint_torques: torch.Tensor,
-        tip_wrenches: torch.Tensor
+    asymmetric_obs: bool,
+    dof_position: torch.Tensor,
+    dof_velocity: torch.Tensor,
+    object_state: torch.Tensor,
+    object_goal_poses: torch.Tensor,
+    actions: torch.Tensor,
+    fingertip_state: torch.Tensor,
+    joint_torques: torch.Tensor,
+    tip_wrenches: torch.Tensor,
 ):
 
     num_envs = dof_position.shape[0]
 
-    obs_buf = torch.cat([
-        dof_position,
-        dof_velocity,
-        object_state[:, 0:7], # pose
-        object_goal_poses,
-        actions
-    ], dim=-1)
+    obs_buf = torch.cat(
+        [
+            dof_position,
+            dof_velocity,
+            object_state[:, 0:7],  # pose
+            object_goal_poses,
+            actions,
+        ],
+        dim=-1,
+    )
 
     if asymmetric_obs:
-        states_buf = torch.cat([
-            obs_buf,
-            object_state[:, 7:13], # linear / angular velocity
-            fingertip_state.reshape(num_envs, -1),
-            joint_torques,
-            tip_wrenches
-        ], dim=-1)
+        states_buf = torch.cat(
+            [
+                obs_buf,
+                object_state[:, 7:13],  # linear / angular velocity
+                fingertip_state.reshape(num_envs, -1),
+                joint_torques,
+                tip_wrenches,
+            ],
+            dim=-1,
+        )
     else:
         states_buf = obs_buf
 
     return obs_buf, states_buf
+
 
 """
 Sampling of cuboidal object
@@ -1425,7 +1761,9 @@ Sampling of cuboidal object
 
 
 @torch.jit.script
-def random_xy(num: int, max_com_distance_to_center: float, device: str) -> Tuple[torch.Tensor, torch.Tensor]:
+def random_xy(
+    num: int, max_com_distance_to_center: float, device: str
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """Returns sampled uniform positions in circle (https://stackoverflow.com/a/50746409)"""
     # sample radius of circle
     radius = torch.sqrt(torch.rand(num, dtype=torch.float, device=device))
@@ -1440,7 +1778,9 @@ def random_xy(num: int, max_com_distance_to_center: float, device: str) -> Tuple
 
 
 @torch.jit.script
-def random_z(num: int, min_height: float, max_height: float, device: str) -> torch.Tensor:
+def random_z(
+    num: int, min_height: float, max_height: float, device: str
+) -> torch.Tensor:
     """Returns sampled height of the goal object."""
     z = torch.rand(num, dtype=torch.float, device=device)
     z = (max_height - min_height) * z + min_height
@@ -1451,7 +1791,14 @@ def random_z(num: int, min_height: float, max_height: float, device: str) -> tor
 @torch.jit.script
 def default_orientation(num: int, device: str) -> torch.Tensor:
     """Returns identity rotation transform."""
-    quat = torch.zeros((num, 4,), dtype=torch.float, device=device)
+    quat = torch.zeros(
+        (
+            num,
+            4,
+        ),
+        dtype=torch.float,
+        device=device,
+    )
     quat[..., -1] = 1.0
 
     return quat
@@ -1463,31 +1810,52 @@ def random_orientation(num: int, device: str) -> torch.Tensor:
     Ref: https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.transform.Rotation.random.html
     """
     # sample random orientation from normal distribution
-    quat = torch.randn((num, 4,), dtype=torch.float, device=device)
+    quat = torch.randn(
+        (
+            num,
+            4,
+        ),
+        dtype=torch.float,
+        device=device,
+    )
     # normalize the quaternion
-    quat = torch.nn.functional.normalize(quat, p=2., dim=-1, eps=1e-12)
+    quat = torch.nn.functional.normalize(quat, p=2.0, dim=-1, eps=1e-12)
 
     return quat
 
+
 @torch.jit.script
-def random_orientation_within_angle(num: int, device:str, base: torch.Tensor, max_angle: float):
-    """ Generates random quaternions within max_angle of base
+def random_orientation_within_angle(
+    num: int, device: str, base: torch.Tensor, max_angle: float
+):
+    """Generates random quaternions within max_angle of base
     Ref: https://math.stackexchange.com/a/3448434
     """
-    quat = torch.zeros((num, 4,), dtype=torch.float, device=device)
+    quat = torch.zeros(
+        (
+            num,
+            4,
+        ),
+        dtype=torch.float,
+        device=device,
+    )
 
     rand = torch.rand((num, 3), dtype=torch.float, device=device)
 
-    c = torch.cos(rand[:, 0]*max_angle)
-    n = torch.sqrt((1.-c)/2.)
+    c = torch.cos(rand[:, 0] * max_angle)
+    n = torch.sqrt((1.0 - c) / 2.0)
 
-    quat[:, 3] = torch.sqrt((1+c)/2.)
-    quat[:, 2] = (rand[:, 1]*2.-1.) * n
-    quat[:, 0] = (torch.sqrt(1-quat[:, 2]**2.) * torch.cos(2*np.pi*rand[:, 2])) * n
-    quat[:, 1] = (torch.sqrt(1-quat[:, 2]**2.) * torch.sin(2*np.pi*rand[:, 2])) * n
+    quat[:, 3] = torch.sqrt((1 + c) / 2.0)
+    quat[:, 2] = (rand[:, 1] * 2.0 - 1.0) * n
+    quat[:, 0] = (
+        torch.sqrt(1 - quat[:, 2] ** 2.0) * torch.cos(2 * np.pi * rand[:, 2])
+    ) * n
+    quat[:, 1] = (
+        torch.sqrt(1 - quat[:, 2] ** 2.0) * torch.sin(2 * np.pi * rand[:, 2])
+    ) * n
 
     # floating point errors can cause it to  be slightly off, re-normalise
-    quat = torch.nn.functional.normalize(quat, p=2., dim=-1, eps=1e-12)
+    quat = torch.nn.functional.normalize(quat, p=2.0, dim=-1, eps=1e-12)
 
     return quat_mul(quat, base)
 
@@ -1496,11 +1864,26 @@ def random_orientation_within_angle(num: int, device:str, base: torch.Tensor, ma
 def random_angular_vel(num: int, device: str, magnitude_stdev: float) -> torch.Tensor:
     """Samples a random angular velocity with standard deviation `magnitude_stdev`"""
 
-    axis = torch.randn((num, 3,), dtype=torch.float, device=device)
+    axis = torch.randn(
+        (
+            num,
+            3,
+        ),
+        dtype=torch.float,
+        device=device,
+    )
     axis /= torch.norm(axis, p=2, dim=-1).view(-1, 1)
-    magnitude = torch.randn((num, 1,), dtype=torch.float, device=device)
+    magnitude = torch.randn(
+        (
+            num,
+            1,
+        ),
+        dtype=torch.float,
+        device=device,
+    )
     magnitude *= magnitude_stdev
     return magnitude * axis
+
 
 @torch.jit.script
 def random_yaw_orientation(num: int, device: str) -> torch.Tensor:

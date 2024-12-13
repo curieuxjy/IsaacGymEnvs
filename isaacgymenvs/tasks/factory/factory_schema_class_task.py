@@ -35,7 +35,6 @@ from abc import ABC, abstractmethod
 
 
 class FactoryABCTask(ABC):
-
     @abstractmethod
     def __init__(self):
         """Initialize instance variables. Initialize environment superclass."""

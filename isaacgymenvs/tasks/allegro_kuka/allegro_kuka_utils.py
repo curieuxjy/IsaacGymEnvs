@@ -1,4 +1,3 @@
-
 # Copyright (c) 2018-2023, NVIDIA Corporation
 # All rights reserved.
 #
@@ -38,6 +37,7 @@ from torch import Tensor
 @dataclass
 class DofParameters:
     """Joint/dof parameters."""
+
     allegro_stiffness: float
     kuka_stiffness: float
     allegro_effort: float
@@ -63,7 +63,9 @@ class DofParameters:
         )
 
 
-def populate_dof_properties(hand_arm_dof_props, params: DofParameters, arm_dofs: int, hand_dofs: int) -> None:
+def populate_dof_properties(
+    hand_arm_dof_props, params: DofParameters, arm_dofs: int, hand_dofs: int
+) -> None:
     assert len(hand_arm_dof_props["stiffness"]) == arm_dofs + hand_dofs
 
     hand_arm_dof_props["stiffness"][0:arm_dofs].fill(params.kuka_stiffness)
@@ -109,7 +111,9 @@ def tolerance_curriculum(
     success_tolerance = min(success_tolerance, initial_tolerance)
     success_tolerance = max(success_tolerance, target_tolerance)
 
-    print(f"Prev episode successes: {mean_successes_per_episode}, success tolerance: {success_tolerance}")
+    print(
+        f"Prev episode successes: {mean_successes_per_episode}, success tolerance: {success_tolerance}"
+    )
 
     last_curriculum_update = frames_since_restart
     return success_tolerance, last_curriculum_update
@@ -126,7 +130,10 @@ def interp_0_1(x_curr: float, x_initial: float, x_target: float) -> float:
 
 
 def tolerance_successes_objective(
-    success_tolerance: float, initial_tolerance: float, target_tolerance: float, successes: Tensor
+    success_tolerance: float,
+    initial_tolerance: float,
+    target_tolerance: float,
+    successes: Tensor,
 ) -> Tensor:
     """
     Objective for the PBT. This basically prioritizes tolerance over everything else when we
@@ -136,12 +143,23 @@ def tolerance_successes_objective(
     if initial_tolerance > target_tolerance:
         # makeshift unit tests:
         eps = 1e-5
-        assert abs(interp_0_1(initial_tolerance, initial_tolerance, target_tolerance)) < eps
-        assert abs(interp_0_1(target_tolerance, initial_tolerance, target_tolerance) - 1.0) < eps
+        assert (
+            abs(interp_0_1(initial_tolerance, initial_tolerance, target_tolerance))
+            < eps
+        )
+        assert (
+            abs(interp_0_1(target_tolerance, initial_tolerance, target_tolerance) - 1.0)
+            < eps
+        )
         mid_tolerance = (initial_tolerance + target_tolerance) / 2
-        assert abs(interp_0_1(mid_tolerance, initial_tolerance, target_tolerance) - 0.5) < eps
+        assert (
+            abs(interp_0_1(mid_tolerance, initial_tolerance, target_tolerance) - 0.5)
+            < eps
+        )
 
-        tolerance_objective = interp_0_1(success_tolerance, initial_tolerance, target_tolerance)
+        tolerance_objective = interp_0_1(
+            success_tolerance, initial_tolerance, target_tolerance
+        )
     else:
         tolerance_objective = 1.0
 

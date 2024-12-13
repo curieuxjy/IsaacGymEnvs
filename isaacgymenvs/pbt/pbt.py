@@ -44,7 +44,11 @@ from rl_games.common.algo_observer import AlgoObserver
 
 from isaacgymenvs.pbt.mutation import mutate
 from isaacgymenvs.utils.reformat import omegaconf_to_dict
-from isaacgymenvs.utils.utils import flatten_dict, project_tmp_dir, safe_ensure_dir_exists
+from isaacgymenvs.utils.utils import (
+    flatten_dict,
+    project_tmp_dir,
+    safe_ensure_dir_exists,
+)
 
 
 # i.e. value for target objective when it is not known
@@ -89,7 +93,9 @@ class PbtParams:
         self.replace_fraction_worst = pbt_params["replace_fraction_worst"]
 
         self.replace_threshold_frac_std = pbt_params["replace_threshold_frac_std"]
-        self.replace_threshold_frac_absolute = pbt_params["replace_threshold_frac_absolute"]
+        self.replace_threshold_frac_absolute = pbt_params[
+            "replace_threshold_frac_absolute"
+        ]
         self.mutation_rate = pbt_params["mutation_rate"]
         self.change_min = pbt_params["change_min"]
         self.change_max = pbt_params["change_max"]
@@ -183,7 +189,9 @@ def initial_pbt_check(cfg: DictConfig):
         print(f"PBT job restarted from checkpoint, keep going...")
         return
 
-    print("PBT run without 'pbt_restart=True' - must be the very start of the experiment!")
+    print(
+        "PBT run without 'pbt_restart=True' - must be the very start of the experiment!"
+    )
     print("Mutating initial set of hyperparameters!")
 
     pbt_params = PbtParams(cfg)
@@ -194,7 +202,9 @@ def initial_pbt_check(cfg: DictConfig):
         pbt_params.change_min,
         pbt_params.change_max,
     )
-    _restart_process_with_new_params(pbt_params.policy_idx, new_params, None, None, None, False)
+    _restart_process_with_new_params(
+        pbt_params.policy_idx, new_params, None, None, None, False
+    )
 
 
 class PbtAlgoObserver(AlgoObserver):
@@ -211,7 +221,9 @@ class PbtAlgoObserver(AlgoObserver):
         self.pbt_workspace_dir = self.curr_policy_workspace_dir = None
 
         self.pbt_iteration = -1  # dummy value, stands for "not initialized"
-        self.initial_env_frames = -1  # env frames at the beginning of the experiment, can be > 0 if we resume
+        self.initial_env_frames = (
+            -1
+        )  # env frames at the beginning of the experiment, can be > 0 if we resume
 
         self.finished_agents = set()
         self.last_target_objectives = [_UNINITIALIZED_VALUE] * self.pbt_params.num_envs
@@ -233,7 +245,9 @@ class PbtAlgoObserver(AlgoObserver):
         self.algo = algo
 
         self.pbt_workspace_dir = join(algo.train_dir, self.pbt_params.workspace)
-        self.curr_policy_workspace_dir = self._policy_workspace_dir(self.pbt_params.policy_idx)
+        self.curr_policy_workspace_dir = self._policy_workspace_dir(
+            self.pbt_params.policy_idx
+        )
         os.makedirs(self.curr_policy_workspace_dir, exist_ok=True)
 
     def process_infos(self, infos, done_indices):
@@ -246,13 +260,19 @@ class PbtAlgoObserver(AlgoObserver):
                 self.last_target_objectives[done_idx] = true_objective_value
 
             # last result for all episodes
-            self.target_objective_known = len(self.finished_agents) >= self.pbt_params.num_envs
+            self.target_objective_known = (
+                len(self.finished_agents) >= self.pbt_params.num_envs
+            )
             if self.target_objective_known:
-                self.curr_target_objective_value = float(np.mean(self.last_target_objectives))
+                self.curr_target_objective_value = float(
+                    np.mean(self.last_target_objectives)
+                )
         else:
             # environment does not specify "true objective", use regular reward
             # in this case, be careful not to include reward shaping coefficients into the mutation config
-            self.target_objective_known = self.algo.game_rewards.current_size >= self.algo.games_to_track
+            self.target_objective_known = (
+                self.algo.game_rewards.current_size >= self.algo.games_to_track
+            )
             if self.target_objective_known:
                 self.curr_target_objective_value = float(self.algo.mean_rewards)
 
@@ -311,13 +331,17 @@ class PbtAlgoObserver(AlgoObserver):
         try:
             self._save_pbt_checkpoint()
         except Exception as exc:
-            print(f"Policy {self.policy_idx}: Exception {exc} when saving PBT checkpoint!")
+            print(
+                f"Policy {self.policy_idx}: Exception {exc} when saving PBT checkpoint!"
+            )
             return
 
         try:
             checkpoints = self._load_population_checkpoints()
         except Exception as exc:
-            print(f"Policy {self.policy_idx}: Exception {exc} when loading checkpoints!")
+            print(
+                f"Policy {self.policy_idx}: Exception {exc} when loading checkpoints!"
+            )
             return
 
         try:
@@ -339,7 +363,9 @@ class PbtAlgoObserver(AlgoObserver):
         policies_sorted = [p for objective, p in policies_sorted]
         best_policy = policies_sorted[0]
 
-        self._maybe_save_best_policy(best_objective, best_policy, checkpoints[best_policy])
+        self._maybe_save_best_policy(
+            best_objective, best_policy, checkpoints[best_policy]
+        )
 
         objectives_filtered = [o for o in objectives if o > _UNINITIALIZED_VALUE]
 
@@ -361,17 +387,25 @@ class PbtAlgoObserver(AlgoObserver):
             )
             return
 
-        replace_worst = math.ceil(self.pbt_params.replace_fraction_worst * self.pbt_num_policies)
-        replace_best = math.ceil(self.pbt_params.replace_fraction_best * self.pbt_num_policies)
+        replace_worst = math.ceil(
+            self.pbt_params.replace_fraction_worst * self.pbt_num_policies
+        )
+        replace_best = math.ceil(
+            self.pbt_params.replace_fraction_best * self.pbt_num_policies
+        )
 
         best_policies = policies_sorted[:replace_best]
         worst_policies = policies_sorted[-replace_worst:]
 
-        print(f"Policy {self.policy_idx}: PBT best_policies={best_policies}, worst_policies={worst_policies}")
+        print(
+            f"Policy {self.policy_idx}: PBT best_policies={best_policies}, worst_policies={worst_policies}"
+        )
 
         if self.policy_idx not in worst_policies and not self.pbt_params.dbg_mode:
             # don't touch the policies that are doing okay
-            print(f"Current policy {self.policy_idx} is doing well, not among the worst_policies={worst_policies}")
+            print(
+                f"Current policy {self.policy_idx} is doing well, not among the worst_policies={worst_policies}"
+            )
             return
 
         if best_objective_curr_iteration is not None and not self.pbt_params.dbg_mode:
@@ -383,17 +417,26 @@ class PbtAlgoObserver(AlgoObserver):
                 )
                 return
 
-        if len(objectives_filtered) <= max(2, self.pbt_num_policies // 2) and not self.pbt_params.dbg_mode:
-            print(f"Policy {self.policy_idx}: Not enough data to start PBT, {objectives_filtered}")
+        if (
+            len(objectives_filtered) <= max(2, self.pbt_num_policies // 2)
+            and not self.pbt_params.dbg_mode
+        ):
+            print(
+                f"Policy {self.policy_idx}: Not enough data to start PBT, {objectives_filtered}"
+            )
             return
 
-        print(f"Current policy {self.policy_idx} is among the worst_policies={worst_policies}, consider replacing weights")
+        print(
+            f"Current policy {self.policy_idx} is among the worst_policies={worst_policies}, consider replacing weights"
+        )
         print(
             f"Policy {self.policy_idx} objective: {self.curr_target_objective_value}, best_objective={best_objective} (best_policy={best_policy})."
         )
 
         replacement_policy_candidate = random.choice(best_policies)
-        candidate_objective = checkpoints[replacement_policy_candidate]["true_objective"]
+        candidate_objective = checkpoints[replacement_policy_candidate][
+            "true_objective"
+        ]
         targ_objective_value = self.curr_target_objective_value
         objective_delta = candidate_objective - targ_objective_value
 
@@ -409,14 +452,23 @@ class PbtAlgoObserver(AlgoObserver):
         else:
             objectives_std = np.std(objectives_filtered)
 
-        objective_threshold = self.pbt_params.replace_threshold_frac_std * objectives_std
+        objective_threshold = (
+            self.pbt_params.replace_threshold_frac_std * objectives_std
+        )
 
-        absolute_threshold = self.pbt_params.replace_threshold_frac_absolute * abs(candidate_objective)
+        absolute_threshold = self.pbt_params.replace_threshold_frac_absolute * abs(
+            candidate_objective
+        )
 
-        if objective_delta > objective_threshold and objective_delta > absolute_threshold:
+        if (
+            objective_delta > objective_threshold
+            and objective_delta > absolute_threshold
+        ):
             # replace this policy with a candidate
             replacement_policy = replacement_policy_candidate
-            print(f"Replacing underperforming policy {self.policy_idx} with {replacement_policy}")
+            print(
+                f"Replacing underperforming policy {self.policy_idx} with {replacement_policy}"
+            )
         else:
             print(
                 f"Policy {self.policy_idx}: Difference in objective value ({candidate_objective} vs {targ_objective_value}) is not sufficient to justify replacement,"
@@ -452,20 +504,28 @@ class PbtAlgoObserver(AlgoObserver):
             return
 
         try:
-            restart_checkpoint = os.path.abspath(checkpoints[replacement_policy]["checkpoint"])
+            restart_checkpoint = os.path.abspath(
+                checkpoints[replacement_policy]["checkpoint"]
+            )
 
             # delete previous tempdir to make sure we don't grow too big
-            checkpoint_tmp_dir = join(project_tmp_dir(), f"{experiment_name}_p{self.policy_idx}")
+            checkpoint_tmp_dir = join(
+                project_tmp_dir(), f"{experiment_name}_p{self.policy_idx}"
+            )
             if os.path.isdir(checkpoint_tmp_dir):
                 shutil.rmtree(checkpoint_tmp_dir)
 
             checkpoint_tmp_dir = safe_ensure_dir_exists(checkpoint_tmp_dir)
-            restart_checkpoint_tmp = join(checkpoint_tmp_dir, os.path.basename(restart_checkpoint))
+            restart_checkpoint_tmp = join(
+                checkpoint_tmp_dir, os.path.basename(restart_checkpoint)
+            )
 
             # copy the checkpoint file to the temp dir to make sure it does not get deleted while we're restarting
             shutil.copyfile(restart_checkpoint, restart_checkpoint_tmp)
         except Exception as exc:
-            print(f"Policy {self.policy_idx}: Exception {exc} when copying checkpoint file for restart")
+            print(
+                f"Policy {self.policy_idx}: Exception {exc} when copying checkpoint file for restart"
+            )
             # perhaps checkpoint file was deleted before we could make a copy. Abort the restart.
             return
 
@@ -485,30 +545,45 @@ class PbtAlgoObserver(AlgoObserver):
             f"Checkpoint {restart_checkpoint_tmp}"
         )
         _restart_process_with_new_params(
-            self.policy_idx, new_params, restart_checkpoint_tmp, experiment_name, self.algo, self.with_wandb
+            self.policy_idx,
+            new_params,
+            restart_checkpoint_tmp,
+            experiment_name,
+            self.algo,
+            self.with_wandb,
         )
 
     def _rewrite_checkpoint(self, restart_checkpoint_tmp: str, env_frames: int) -> None:
         state = torch.load(restart_checkpoint_tmp)
-        print(f"Policy {self.policy_idx}: restarting from checkpoint {restart_checkpoint_tmp}, {state['frame']}")
+        print(
+            f"Policy {self.policy_idx}: restarting from checkpoint {restart_checkpoint_tmp}, {state['frame']}"
+        )
         print(f"Replacing {state['frame']} with {env_frames}...")
         state["frame"] = env_frames
 
         pbt_history = state.get("pbt_history", [])
         print(f"PBT history: {pbt_history}")
-        pbt_history.append((self.policy_idx, env_frames, self.curr_target_objective_value))
+        pbt_history.append(
+            (self.policy_idx, env_frames, self.curr_target_objective_value)
+        )
         state["pbt_history"] = pbt_history
 
         torch.save(state, restart_checkpoint_tmp)
-        print(f"Policy {self.policy_idx}: checkpoint rewritten to {restart_checkpoint_tmp}!")
+        print(
+            f"Policy {self.policy_idx}: checkpoint rewritten to {restart_checkpoint_tmp}!"
+        )
 
     def _save_pbt_checkpoint(self):
         """Save PBT-specific information including iteration number, policy index and hyperparameters."""
-        checkpoint_file = join(self.curr_policy_workspace_dir, _model_checkpnt_name(self.pbt_iteration))
+        checkpoint_file = join(
+            self.curr_policy_workspace_dir, _model_checkpnt_name(self.pbt_iteration)
+        )
         algo_state = self.algo.get_full_state_weights()
         safe_save(algo_state, checkpoint_file)
 
-        pbt_checkpoint_file = join(self.curr_policy_workspace_dir, _checkpnt_name(self.pbt_iteration))
+        pbt_checkpoint_file = join(
+            self.curr_policy_workspace_dir, _checkpnt_name(self.pbt_iteration)
+        )
 
         pbt_checkpoint = {
             "iteration": self.pbt_iteration,
@@ -542,7 +617,9 @@ class PbtAlgoObserver(AlgoObserver):
             if not os.path.isdir(policy_workspace_dir):
                 continue
 
-            pbt_checkpoint_files = [f for f in os.listdir(policy_workspace_dir) if f.endswith(".yaml")]
+            pbt_checkpoint_files = [
+                f for f in os.listdir(policy_workspace_dir) if f.endswith(".yaml")
+            ]
             pbt_checkpoint_files.sort(reverse=True)
 
             for pbt_checkpoint_file in pbt_checkpoint_files:
@@ -550,9 +627,15 @@ class PbtAlgoObserver(AlgoObserver):
                 iteration = int(iteration_str)
 
                 if iteration <= self.pbt_iteration:
-                    with open(join(policy_workspace_dir, pbt_checkpoint_file), "r") as fobj:
-                        print(f"Policy {self.policy_idx}: Loading policy-{policy_idx} {pbt_checkpoint_file}")
-                        checkpoints[policy_idx] = safe_filesystem_op(yaml.load, fobj, Loader=yaml.FullLoader)
+                    with open(
+                        join(policy_workspace_dir, pbt_checkpoint_file), "r"
+                    ) as fobj:
+                        print(
+                            f"Policy {self.policy_idx}: Loading policy-{policy_idx} {pbt_checkpoint_file}"
+                        )
+                        checkpoints[policy_idx] = safe_filesystem_op(
+                            yaml.load, fobj, Loader=yaml.FullLoader
+                        )
                         break
                 else:
                     # print(f'Policy {self.policy_idx}: Ignoring {pbt_checkpoint_file} because it is newer than our current iteration')
@@ -561,18 +644,28 @@ class PbtAlgoObserver(AlgoObserver):
         assert self.policy_idx in checkpoints.keys()
         return checkpoints
 
-    def _maybe_save_best_policy(self, best_objective, best_policy_idx: int, best_policy_checkpoint):
+    def _maybe_save_best_policy(
+        self, best_objective, best_policy_idx: int, best_policy_checkpoint
+    ):
         # make a directory containing the best policy checkpoints using safe_filesystem_op
-        best_policy_workspace_dir = join(self.pbt_workspace_dir, f"best{self.policy_idx}")
+        best_policy_workspace_dir = join(
+            self.pbt_workspace_dir, f"best{self.policy_idx}"
+        )
         safe_filesystem_op(os.makedirs, best_policy_workspace_dir, exist_ok=True)
 
         best_objective_so_far = _UNINITIALIZED_VALUE
 
-        best_policy_checkpoint_files = [f for f in os.listdir(best_policy_workspace_dir) if f.endswith(".yaml")]
+        best_policy_checkpoint_files = [
+            f for f in os.listdir(best_policy_workspace_dir) if f.endswith(".yaml")
+        ]
         best_policy_checkpoint_files.sort(reverse=True)
         if best_policy_checkpoint_files:
-            with open(join(best_policy_workspace_dir, best_policy_checkpoint_files[0]), "r") as fobj:
-                best_policy_checkpoint_so_far = safe_filesystem_op(yaml.load, fobj, Loader=yaml.FullLoader)
+            with open(
+                join(best_policy_workspace_dir, best_policy_checkpoint_files[0]), "r"
+            ) as fobj:
+                best_policy_checkpoint_so_far = safe_filesystem_op(
+                    yaml.load, fobj, Loader=yaml.FullLoader
+                )
                 best_objective_so_far = best_policy_checkpoint_so_far["true_objective"]
 
         if best_objective_so_far >= best_objective:
@@ -596,7 +689,9 @@ class PbtAlgoObserver(AlgoObserver):
             )
 
             # cleanup older best policy checkpoints, we want to keep only N latest files
-            best_policy_checkpoint_files = [f for f in os.listdir(best_policy_workspace_dir)]
+            best_policy_checkpoint_files = [
+                f for f in os.listdir(best_policy_workspace_dir)
+            ]
             best_policy_checkpoint_files.sort(reverse=True)
 
             n_to_keep = 6
@@ -604,14 +699,18 @@ class PbtAlgoObserver(AlgoObserver):
                 os.remove(join(best_policy_workspace_dir, best_policy_checkpoint_file))
 
         except Exception as exc:
-            print(f"Policy {self.policy_idx}: Exception {exc} when copying best checkpoint!")
+            print(
+                f"Policy {self.policy_idx}: Exception {exc} when copying best checkpoint!"
+            )
             # no big deal if this fails, hopefully the next time we will succeeed
             return
 
     def _pbt_summaries(self, params, best_objective):
         for param, value in params.items():
             self.algo.writer.add_scalar(f"pbt/{param}", value, self.algo.frame)
-        self.algo.writer.add_scalar(f"pbt/00_best_objective", best_objective, self.algo.frame)
+        self.algo.writer.add_scalar(
+            f"pbt/00_best_objective", best_objective, self.algo.frame
+        )
         self.algo.writer.flush()
 
     def _cleanup(self, checkpoints):
@@ -634,7 +733,9 @@ class PbtAlgoObserver(AlgoObserver):
             if "." in f:
                 iteration_idx = int(f.split(".")[0])
                 if iteration_idx <= cleanup_threshold:
-                    print(f"Policy {self.policy_idx}: PBT cleanup: removing checkpoint {f}")
+                    print(
+                        f"Policy {self.policy_idx}: PBT cleanup: removing checkpoint {f}"
+                    )
                     # we catch all exceptions in this function so no need to use safe_filesystem_op
                     os.remove(join(self.curr_policy_workspace_dir, f))
 
@@ -647,7 +748,11 @@ class PbtAlgoObserver(AlgoObserver):
 
         max_old_checkpoints = 25
         while True:
-            pbt_checkpoint_files = [f for f in os.listdir(self.curr_policy_workspace_dir) if f.endswith(".yaml")]
+            pbt_checkpoint_files = [
+                f
+                for f in os.listdir(self.curr_policy_workspace_dir)
+                if f.endswith(".yaml")
+            ]
             if len(pbt_checkpoint_files) <= max_old_checkpoints:
                 break
             if not self._delete_old_checkpoint(pbt_checkpoint_files):
@@ -682,7 +787,10 @@ class PbtAlgoObserver(AlgoObserver):
 
         # delete the best candidate
         best_candidate_file = candidates[best_candidate]
-        files_to_remove = [best_candidate_file, _model_checkpnt_name(_iter(best_candidate_file))]
+        files_to_remove = [
+            best_candidate_file,
+            _model_checkpnt_name(_iter(best_candidate_file)),
+        ]
         for file_to_remove in files_to_remove:
             print(
                 f"Policy {self.policy_idx}: PBT cleanup old checkpoints, removing checkpoint {file_to_remove} (best gap {best_gap})"

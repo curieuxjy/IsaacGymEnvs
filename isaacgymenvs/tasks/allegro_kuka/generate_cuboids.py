@@ -36,16 +36,26 @@ FilterFunc = Callable[[List[int]], bool]
 
 
 def generate_assets(
-    scales, min_volume, max_volume, generated_assets_dir, base_mesh, base_cube_size_m, filter_funcs: List[FilterFunc]
+    scales,
+    min_volume,
+    max_volume,
+    generated_assets_dir,
+    base_mesh,
+    base_cube_size_m,
+    filter_funcs: List[FilterFunc],
 ):
-    template_dir = join(os.path.dirname(os.path.abspath(__file__)), "../../../assets/asset_templates")
+    template_dir = join(
+        os.path.dirname(os.path.abspath(__file__)), "../../../assets/asset_templates"
+    )
     print(f"Assets template dir: {template_dir}")
 
     env = Environment(
         loader=FileSystemLoader(template_dir),
         autoescape=select_autoescape(),
     )
-    template = env.get_template("cube_multicolor_allegro.urdf.template")  # <-- pass as function parameter?
+    template = env.get_template(
+        "cube_multicolor_allegro.urdf.template"
+    )  # <-- pass as function parameter?
 
     idx = 0
     for x_scale in scales:
@@ -92,21 +102,33 @@ def filter_thin_plates(scales: List[int]) -> bool:
 def generate_default_cube(assets_dir, base_mesh, base_cube_size_m):
     scales = [100]
     min_volume = max_volume = 1.0
-    generate_assets(scales, min_volume, max_volume, assets_dir, base_mesh, base_cube_size_m, [])
+    generate_assets(
+        scales, min_volume, max_volume, assets_dir, base_mesh, base_cube_size_m, []
+    )
 
 
 def generate_small_cuboids(assets_dir, base_mesh, base_cube_size_m):
     scales = [100, 50, 66, 75, 90, 110, 125, 150, 175, 200, 250, 300]
     min_volume = 1.0
     max_volume = 2.5
-    generate_assets(scales, min_volume, max_volume, assets_dir, base_mesh, base_cube_size_m, [])
+    generate_assets(
+        scales, min_volume, max_volume, assets_dir, base_mesh, base_cube_size_m, []
+    )
 
 
 def generate_big_cuboids(assets_dir, base_mesh, base_cube_size_m):
     scales = [100, 125, 150, 200, 250, 300, 350]
     min_volume = 2.5
     max_volume = 15.0
-    generate_assets(scales, min_volume, max_volume, assets_dir, base_mesh, base_cube_size_m, [filter_thin_plates])
+    generate_assets(
+        scales,
+        min_volume,
+        max_volume,
+        assets_dir,
+        base_mesh,
+        base_cube_size_m,
+        [filter_thin_plates],
+    )
 
 
 def filter_non_elongated(scales: List[int]) -> bool:
