@@ -234,7 +234,8 @@ class Env(ABC):
 
 class VecTask(Env):
 
-    metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 24}
+    # metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 24}
+    metadata = {"render_modes": ["human", "rgb_array"], "video.frames_per_second": 24}
 
     def __init__(
         self,
@@ -252,7 +253,7 @@ class VecTask(Env):
             config: config dictionary for the environment.
             sim_device: the device to simulate physics on. eg. 'cuda:0' or 'cpu'
             graphics_device_id: the device ID to render with.
-            headless: Set to False to disable viewer rendering.
+            headless: Set False to disable viewer rendering.
             virtual_screen_capture: Set to True to allow the users get captured screen in RGB array via `env.render(mode='rgb_array')`.
             force_render: Set to True to always force rendering in the steps (if the `control_freq_inv` is greater than 1 we suggest stting this arg to True)
         """

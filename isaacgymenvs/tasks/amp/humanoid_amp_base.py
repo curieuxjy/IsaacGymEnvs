@@ -481,6 +481,7 @@ class HumanoidAMPBase(VecTask):
 
         return
 
+    # https://github.com/isaac-sim/IsaacGymEnvs/issues/131
     def render(self):
         if self.viewer and self.camera_follow:
             self._update_camera()
